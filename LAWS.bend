@@ -532,3 +532,27 @@ law least_squares_origin:
     == Done{L.LinearRegression{False{}, a, b}} : Result<L.FitError, L.LinearRegression>}
   for a2: N.Rat
   {N.Rat.is_le(sse(a, b, xs, ys), sse(a2, N.Rat.zero(), xs, ys)) == True{} : Bool}
+
+# ...and it is the only one: a line at least as good is the same line.
+law least_squares_unique:
+  for xs: +List<N.Rat>
+  for ys: +List<N.Rat>
+  for a: N.Rat
+  for b: N.Rat
+  for ok: {L.LinearRegression.fit(True{}, xs, ys)
+    == Done{L.LinearRegression{True{}, a, b}} : Result<L.FitError, L.LinearRegression>}
+  for a2: N.Rat
+  for b2: N.Rat
+  for good: {N.Rat.is_le(sse(a2, b2, xs, ys), sse(a, b, xs, ys)) == True{} : Bool}
+  {same(a2, a) == True{} : Bool} & {same(b2, b) == True{} : Bool}
+
+law least_squares_origin_unique:
+  for xs: +List<N.Rat>
+  for ys: +List<N.Rat>
+  for a: N.Rat
+  for b: N.Rat
+  for ok: {L.LinearRegression.fit(False{}, xs, ys)
+    == Done{L.LinearRegression{False{}, a, b}} : Result<L.FitError, L.LinearRegression>}
+  for a2: N.Rat
+  for good: {N.Rat.is_le(sse(a2, N.Rat.zero(), xs, ys), sse(a, b, xs, ys)) == True{} : Bool}
+  {same(a2, a) == True{} : Bool}
