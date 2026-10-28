@@ -1,0 +1,1703 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Least squares with exact fractions, written in Bend and running in the browser.">
+<title>Exact Linear Regression</title>
+<style>
+/* One narrow monospace column, numbered sections, results set like a terminal transcript. */
+:root{
+  --bg:#f2eee7;--bg2:#e9e4db;--line:#e4dfd5;
+  --faint:#a9a59d;--muted:#87847d;--text:#69665f;--strong:#4d4a44;
+  --vio:#8b83b5;--vio-soft:#d8d4e2;--grn:#7e9a5e;--ora:#c4845c;--red:#c46a60;
+  --dot:#69665f;--on-vio:#fff;
+  --mono:ui-monospace,Menlo,"SF Mono",Consolas,"Liberation Mono",monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#1e1c19;--bg2:#282521;--line:#34302a;
+  --faint:#6f6a62;--muted:#8d877d;--text:#b5afa4;--strong:#e3ddd2;
+  --vio:#a59ed0;--vio-soft:#46415f;--grn:#98b577;--ora:#d39a74;--red:#d6847a;
+  --dot:#b5afa4;--on-vio:#1e1c19;color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1e1c19;--bg2:#282521;--line:#34302a;
+  --faint:#6f6a62;--muted:#8d877d;--text:#b5afa4;--strong:#e3ddd2;
+  --vio:#a59ed0;--vio-soft:#46415f;--grn:#98b577;--ora:#d39a74;--red:#d6847a;
+  --dot:#b5afa4;--on-vio:#1e1c19;color-scheme:dark}
+
+*{box-sizing:border-box}
+html{font:15px/1.6 var(--mono);font-size:min(3.6vw,max(15px,1vw),22px);-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{background:var(--bg);color:var(--text);font:inherit;margin:0}
+.page{max-width:68ch;margin:0 auto;padding-block:0 4em;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+a{color:var(--vio);text-decoration:none;border-bottom:1px solid var(--vio-soft)}
+a:hover{border-bottom-color:var(--vio)}
+b{color:var(--strong);font-weight:600}
+p{margin:.8em 0}
+:focus-visible{outline:2px solid var(--vio);outline-offset:2px}
+
+.top{display:flex;justify-content:space-between;gap:2ch;flex-wrap:wrap;padding:1.2em 0 0;color:var(--faint);font-size:.87em}
+.top .st{color:var(--muted)}
+
+#hero{text-align:center;padding:2.6em 0 1.2em}
+#hero h1{font-size:2.6em;line-height:1;margin:0;color:var(--strong);font-weight:600;letter-spacing:-.02em;text-wrap:balance}
+#hero h1::after{content:"";display:inline-block;width:.5em;height:.9em;margin-left:.12em;vertical-align:-.08em;background:var(--vio);animation:blink 1.1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+@media (prefers-reduced-motion:reduce){#hero h1::after{animation:none}}
+#hero .sub{margin:1em 0 0;color:var(--muted)}
+#hero .tag{margin:.4em 0 0;color:var(--faint);font-size:.87em}
+
+section{margin:2.6em 0 0;padding-top:1.3em;border-top:1px solid var(--line)}
+h2{font-size:1.2em;margin:0 0 .7em;color:var(--strong);font-weight:600;text-wrap:balance}
+h2 span{color:var(--faint);font-weight:400;margin-right:1ch}
+.hint{color:var(--muted);font-size:.87em;margin:.2em 0 .8em}
+
+.presets{display:flex;flex-wrap:wrap;gap:.3em 1.6ch;margin:0 0 .7em;font-size:.87em}
+.presets button{font:inherit;background:none;border:0;padding:0;color:var(--muted);cursor:pointer;border-bottom:1px solid transparent}
+.presets button:hover{color:var(--vio)}
+.presets button[aria-pressed="true"]{color:var(--vio);border-bottom-color:var(--vio)}
+
+textarea,input[type=text]{width:100%;font:inherit;color:var(--strong);background:var(--bg2);border:1px solid var(--line);border-radius:3px;padding:.6em 1ch;line-height:1.5}
+textarea{min-height:10.5em;resize:vertical;tab-size:2}
+textarea:focus,input[type=text]:focus{outline:none;border-color:var(--vio)}
+.opt{display:flex;align-items:center;gap:1ch;margin:.7em 0 0;color:var(--text);cursor:pointer;width:fit-content}
+.opt input{accent-color:var(--vio);width:1em;height:1em;margin:0}
+.opt code{color:var(--strong)}
+
+.out{display:grid;grid-template-columns:auto 1fr;gap:.25em 2ch;margin:.4em 0 1em;font-variant-numeric:tabular-nums}
+.out dt{color:var(--faint)}
+.out dd{margin:0;min-width:0;overflow-wrap:anywhere;color:var(--strong)}
+.out dd .ap{color:var(--muted);margin-left:1ch}
+.err{margin:.6em 0 1em;padding:.6em 1ch;border-left:2px solid var(--red);background:var(--bg2);color:var(--text)}
+.err b{color:var(--red)}
+
+figure{margin:1.2em 0}
+figure svg{display:block;width:100%;height:auto;max-width:100%}
+figcaption{text-align:center;color:var(--faint);font-size:.87em;margin-top:.5em}
+
+pre{margin:1em 0;padding:.8em 1ch;background:var(--bg2);border-radius:3px;overflow-x:auto;line-height:1.5;color:var(--text);font:inherit;font-size:.9em}
+.k{color:var(--grn)}.v{color:var(--vio)}.o{color:var(--ora)}.c{color:var(--faint)}.r{color:var(--red)}
+
+.preds{margin:.8em 0 0;padding:0;list-style:none;font-variant-numeric:tabular-nums}
+.preds li{display:grid;grid-template-columns:minmax(6ch,auto) 1fr;gap:2ch;padding:.15em 0;border-bottom:1px dashed var(--line)}
+.preds li span:first-child{color:var(--faint)}
+.preds li span:last-child{min-width:0;overflow-wrap:anywhere;color:var(--strong)}
+
+.limit{font-variant-numeric:tabular-nums}
+.meter{position:relative;height:.6em;background:var(--bg2);border:1px solid var(--line);border-radius:3px;margin:.6em 0 .3em;overflow:hidden}
+.meter i{position:absolute;inset:0 auto 0 0;background:var(--vio);width:0;transition:width .4s ease-out}
+.meter.over i{background:var(--red)}
+@media (prefers-reduced-motion:reduce){.meter i{transition:none}}
+.scale{display:flex;justify-content:space-between;color:var(--faint);font-size:.8em}
+
+footer{margin:3em 0 0;text-align:center;color:var(--faint);font-size:.8em}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+
+<div class="page">
+<div class="top"><span>~/linreg</span><span class="st">one feature · exact · <span id="status">loading</span></span></div>
+
+<div id="hero">
+  <h1>linreg</h1>
+  <p class="sub">least squares with <b>exact</b> fractions, written in <b>Bend</b></p>
+  <p class="tag"><b>Rat</b> arithmetic · <b>no</b> rounding · runs in your browser</p>
+</div>
+
+<section>
+  <h2><span>1.</span>Your <b>data</b></h2>
+  <p class="hint">One point per line: x then y. Integers, decimals like <b>1.25</b> or fractions like <b>-7/3</b>.</p>
+  <div class="presets" id="presets" role="group" aria-label="Example datasets"></div>
+  <textarea id="data" spellcheck="false" aria-label="Data points, one x y pair per line"></textarea>
+  <label class="opt" for="fi"><input type="checkbox" id="fi" checked> <code>fit_intercept</code></label>
+</section>
+
+<section>
+  <h2><span>2.</span>The <b>fit</b></h2>
+  <div id="fiterr" class="err" hidden></div>
+  <dl class="out" id="fitout">
+    <dt>coef</dt><dd id="coef">…</dd>
+    <dt>intercept</dt><dd id="intercept">…</dd>
+    <dt>R²</dt><dd id="r2">…</dd>
+  </dl>
+  <figure>
+    <svg id="chart" viewBox="0 0 600 340" role="img" aria-label="Scatter plot of the points with the fitted line"></svg>
+    <figcaption id="cap">points · fitted line · residuals dashed</figcaption>
+  </figure>
+  <pre id="call"></pre>
+</section>
+
+<section>
+  <h2><span>3.</span><b>Predict</b></h2>
+  <p class="hint">New x values, separated by spaces or commas.</p>
+  <input type="text" id="px" spellcheck="false" aria-label="x values to predict">
+  <div id="prederr" class="err" hidden></div>
+  <ul class="preds" id="preds"></ul>
+</section>
+
+<section class="limit">
+  <h2><span>4.</span>The <b>limit</b></h2>
+  <p>Bend's runtime stops on any natural number above 2<sup>48</sup> − 1. Before computing, <b>fit</b> checks that nothing it will compute can pass K = 2<sup>47</sup>:</p>
+  <pre><span class="v">n</span>² · <span class="v">B</span>² · max(2<span class="v">B</span>, <span class="v">L</span>) ≤ K</pre>
+  <p class="hint"><b>n</b> points, <b>L</b> the lcm of every denominator, <b>B</b> the largest |x·L| or |y·L|. Inputs over the limit get <b>TooLarge</b> instead of a wrong answer or a crash.</p>
+  <dl class="out" id="limout">
+    <dt>n</dt><dd id="ln">…</dd>
+    <dt>L</dt><dd id="ll">…</dd>
+    <dt>B</dt><dd id="lb">…</dd>
+    <dt>needs</dt><dd id="lneed">…</dd>
+  </dl>
+  <div class="meter" id="meter"><i></i></div>
+  <div class="scale"><span>1</span><span>log scale</span><span>K = 2⁴⁷</span></div>
+</section>
+
+<footer>fit, predict and score are linreg.bend compiled to JavaScript by <a href="https://bend-lang.com" target="_blank" rel="noopener">Bend</a>, which runs them sequentially in the browser. The laws in LAWS.bend are stated; their proofs are not written yet.</footer>
+</div>
+
+<script>
+const Bend = (() => {
+function word_to_u32(w) {
+  let x = 0;
+  for (let i = 0; w.$ === "WCon"; i++) {
+    x |= Number(w.head) << i;
+    w = w.tail;
+  }
+  return x >>> 0;
+}
+
+function u32_to_word(x) {
+  let w = {$: "WNil"};
+  for (let i = 31; i >= 0; i--) {
+    w = {$: "WCon", head: ((x >>> i) & 1) === 1, tail: w};
+  }
+  return w;
+}
+
+function cmp_new(a, b) {
+  return {$: a < b ? "LT" : a === b ? "EQ" : "GT"};
+}
+
+function nat_divmod(a, b) {
+  return b === 0 ? {$: "Tuple", fst: 0, snd: a}
+    : {$: "Tuple", fst: Math.trunc(a / b), snd: a % b};
+}
+
+function nat_chk(n) {
+  if (n > 281474976710655) {
+    throw "bend: a Nat past the largest immediate 2^48-1";
+  }
+  return n;
+}
+
+function nat_in(n) {
+  if (!Number.isInteger(n) || n < 0 || n > 2 ** 53) {
+    throw "bend: expected a Nat host number: an integer from 0 to 2^53";
+  }
+  return n;
+}
+
+function f32_show(x) {
+  let s = "nan";
+  for (let p = 1; x === x && p <= 9 && f32_round(s) !== x; p += 1) {
+    s = String(Number(x.toExponential(p - 1)));
+  }
+  return (Object.is(x, -0) ? "-0" : s).replace("Infinity", "inf");
+}
+
+function f32_bits(x) {
+  return new Uint32Array(new Float32Array([x]).buffer)[0];
+}
+
+function f32_from_bits(u) {
+  return new Float32Array(new Uint32Array([u]).buffer)[0];
+}
+
+function f32_read(s) {
+  const re = /^[\t\n\v\f\r ]*[+-]?((\d+(?:\.\d*)?|\.\d+)(e[+-]?\d+)?|inf(inity)?|nan)$/i;
+  const v = f32_round(s.replace(/inf\w*/i, "Infinity"));
+  return re.test(s) ? {$: "Some", value: v} : {$: "None"};
+}
+
+const f32_round = function f32_round(s) {
+  const d = Number(s);
+  const a = Math.abs(d);
+  const f = Math.fround(a);
+  const g = 2 * a - Math.min(f, 2 ** 128);
+  if (g === f || Math.fround(g) !== g || g === Infinity) {
+    return Math.sign(d) * f;
+  }
+  let k = 0;
+  while (a * 2 ** k % 1 !== 0) {
+    k += 1;
+  }
+  const [, i, r, e] = /(\d*)\.?(\d*)(?:e([+-]?\d+))?$/i.exec(s);
+  const n = Number(e ?? 0) - r.length;
+  const x = BigInt(i + r) * 2n ** BigInt(k) * 10n ** BigInt(Math.max(n, 0));
+  const y = BigInt(a * 2 ** k) * 10n ** BigInt(Math.max(-n, 0));
+  return Math.sign(d) * (x === y || x > y !== g > f ? f : g);
+};
+
+const char_new = function char_new(c) {
+  return c < 55296 || c >= 57344 && c <= 1114111 ? String.fromCodePoint(c) : String.fromCharCode(56320, c >>> 22, c >>> 11 & 2047, c & 2047);
+};
+
+function char_len(s, at = 0) {
+  return s[at] === "\uDC00" ? 4 : s.codePointAt(at) > 0xFFFF ? 2 : 1;
+}
+
+function char_code(s) {
+  return s.length < 4 ? s.codePointAt(0)
+    : (s.charCodeAt(1) << 22 | s.charCodeAt(2) << 11 | s.charCodeAt(3)) >>> 0;
+}
+
+function string_contains(s, p) {
+  // A match must start at a Char boundary, not inside a packed U32 code.
+  for (let at = 0; at <= s.length; at += char_len(s, at)) {
+    if (s.startsWith(p, at)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function str_out(s) {
+  return s.replace(/\uDC00[^]{3}/gu, "\uFFFD");
+}
+
+function str_in(s) {
+  return s.replace(/\p{Cs}/gu, "\uFFFD");
+}
+
+// Array
+// =====
+
+function array_new(d, v) {
+  if (d > 31) {
+    throw "bend: an array past the deepest block class 31";
+  }
+  return Array(2 ** d).fill(v);
+}
+
+function array_node(a, b) {
+  if (a.length !== b.length) {
+    throw "bend: runtime fail-stop";
+  }
+  return a.concat(b);
+}
+
+function array_rmw(a, i, f) {
+  const at = i % a.length;
+  const old = a[at];
+  a[at] = f(old);
+  return {$: "Tuple", fst: a, snd: old};
+}
+
+// Run
+// ===
+
+function run_tail(f, x) {
+  return {$: "$JMP", f: f.j?.f === f ? f.j : f, x};
+}
+
+function run_clo(j) {
+  const f = (x) => run_loop(j(x));
+  f.j = j;
+  j.f = f;
+  return f;
+}
+
+function run_loop(r) {
+  while (r !== null && typeof r === "object" && r.$ === "$JMP") {
+    r = r.f(r.x);
+  }
+  return r;
+}
+
+function run_lib(f, n) {
+  return (...a) => a.length < n ? run_lib((...b) => f(...a, ...b), n - a.length)
+    : run_loop(f(...a));
+}
+
+// Effect
+// ======
+
+const $0eff = Object.create(null);
+
+function io_eff(k, run) {
+  if (arguments.length > 2) {
+    throw new Error("bend: " + k + " takes no need: an effect that waits parks itself");
+  }
+  if (k in $0eff) {
+    throw new Error("bend: two effects register " + k);
+  }
+  $0eff[k] = run;
+}
+// Program
+// =======
+
+function $num_Nat_gcd_go($0, $1, $2) {
+  for (;;) {
+    {
+      const _fuel_0 = $0;
+      const _a_0 = $1;
+      const _b_0 = $2;
+      if (_fuel_0 === 0) {
+        return _a_0;
+      } else {
+        const _f_0 = (_fuel_0 - 1);
+        if (_b_0 === 0) {
+          return _a_0;
+        } else {
+          const _bp_0 = (_b_0 - 1);
+          $0 = _f_0;
+          $1 = nat_chk(_bp_0 + 1);
+          $2 = ($Nat_mod(_a_0, nat_chk(_bp_0 + 1)));
+          continue;
+        }
+      }
+    }
+  }
+}
+
+function $num_Nat_gcd(_a_0, _b_0) {
+  return $num_Nat_gcd_go(nat_chk(_b_0 + 1), _a_0, _b_0);
+}
+
+function $num_Nat_lcm(_a_0, _b_0) {
+  const _x_0 = ($Nat_div(_a_0, ($num_Nat_gcd(_a_0, _b_0))));
+  return nat_chk(_x_0 * _b_0);
+}
+
+function $num_Nat_mul_pred(_a_0, _b_0) {
+  const _x_0 = nat_chk(_b_0 + 1);
+  const _x_1 = nat_chk(_a_0 * _x_0);
+  return nat_chk(_b_0 + _x_1);
+}
+
+function $num_Int_zero() {
+  return {$: "Pos", "n": 0};
+}
+
+function $num_Int_one() {
+  return {$: "Pos", "n": 1};
+}
+
+function $num_Int_minus(_n_0) {
+  if (_n_0 === 0) {
+    return {$: "Pos", "n": 0};
+  } else {
+    const _p_0 = (_n_0 - 1);
+    return {$: "Neg", "n": _p_0};
+  }
+}
+
+function $num_Int_sub_nat_go(_lt_0, _a_0, _b_0) {
+  if (_lt_0) {
+    const _x_0 = nat_chk(_a_0 + 1);
+    return {$: "Neg", "n": (_b_0 < _x_0 ? 0 : _b_0 - _x_0)};
+  } else {
+    return {$: "Pos", "n": (_a_0 < _b_0 ? 0 : _a_0 - _b_0)};
+  }
+}
+
+function $num_Int_sub_nat(_a_0, _b_0) {
+  return $num_Int_sub_nat_go((_a_0 < _b_0), _a_0, _b_0);
+}
+
+function $num_Int_neg(_a_0) {
+  if (_a_0.$ === "Pos") {
+    const _n_0 = _a_0["n"];
+    return $num_Int_minus(_n_0);
+  } else {
+    const _n_1 = _a_0["n"];
+    return {$: "Pos", "n": nat_chk(_n_1 + 1)};
+  }
+}
+
+function $num_Int_add(_a_0, _b_0) {
+  if (_a_0.$ === "Pos") {
+    const _x_0 = _a_0["n"];
+    if (_b_0.$ === "Pos") {
+      const _y_0 = _b_0["n"];
+      return {$: "Pos", "n": nat_chk(_x_0 + _y_0)};
+    } else {
+      const _y_1 = _b_0["n"];
+      return $num_Int_sub_nat(_x_0, nat_chk(_y_1 + 1));
+    }
+  } else {
+    const _x_1 = _a_0["n"];
+    if (_b_0.$ === "Pos") {
+      const _y_2 = _b_0["n"];
+      return $num_Int_sub_nat(_y_2, nat_chk(_x_1 + 1));
+    } else {
+      const _y_3 = _b_0["n"];
+      return {$: "Neg", "n": nat_chk(nat_chk(_x_1 + _y_3) + 1)};
+    }
+  }
+}
+
+function $num_Int_sub(_a_0, _b_0) {
+  return $num_Int_add(_a_0, ($num_Int_neg(_b_0)));
+}
+
+function $num_Int_mul(_a_0, _b_0) {
+  if (_a_0.$ === "Pos") {
+    const _x_0 = _a_0["n"];
+    if (_b_0.$ === "Pos") {
+      const _y_0 = _b_0["n"];
+      return {$: "Pos", "n": nat_chk(_x_0 * _y_0)};
+    } else {
+      const _y_1 = _b_0["n"];
+      const _x_1 = nat_chk(_y_1 + 1);
+      return $num_Int_minus(nat_chk(_x_0 * _x_1));
+    }
+  } else {
+    const _x_2 = _a_0["n"];
+    if (_b_0.$ === "Pos") {
+      const _y_2 = _b_0["n"];
+      const _x_3 = nat_chk(_x_2 + 1);
+      return $num_Int_minus(nat_chk(_x_3 * _y_2));
+    } else {
+      const _y_3 = _b_0["n"];
+      const _x_4 = nat_chk(_x_2 + 1);
+      const _x_5 = nat_chk(_y_3 + 1);
+      return {$: "Pos", "n": nat_chk(_x_4 * _x_5)};
+    }
+  }
+}
+
+function $num_Int_abs(_a_0) {
+  if (_a_0.$ === "Pos") {
+    const _n_0 = _a_0["n"];
+    return _n_0;
+  } else {
+    const _n_1 = _a_0["n"];
+    return nat_chk(_n_1 + 1);
+  }
+}
+
+function $num_Int_div_nat(_a_0, _d_0) {
+  if (_a_0.$ === "Pos") {
+    const _n_0 = _a_0["n"];
+    return {$: "Pos", "n": ($Nat_div(_n_0, _d_0))};
+  } else {
+    const _n_1 = _a_0["n"];
+    return $num_Int_minus(($Nat_div(nat_chk(_n_1 + 1), _d_0)));
+  }
+}
+
+function $num_Int_cmp(_a_0, _b_0) {
+  if (_a_0.$ === "Pos") {
+    const _x_0 = _a_0["n"];
+    if (_b_0.$ === "Pos") {
+      const _y_0 = _b_0["n"];
+      return cmp_new(_x_0, _y_0);
+    } else {
+      return {$: "GT"};
+    }
+  } else {
+    const _x_1 = _a_0["n"];
+    if (_b_0.$ === "Pos") {
+      return {$: "LT"};
+    } else {
+      const _y_3 = _b_0["n"];
+      return cmp_new(_y_3, _x_1);
+    }
+  }
+}
+
+function $num_Int_is_eq(_a_0, _b_0) {
+  return $Cmp_is_eq(($num_Int_cmp(_a_0, _b_0)));
+}
+
+function $num_Int_is_le(_a_0, _b_0) {
+  return $Cmp_is_le(($num_Int_cmp(_a_0, _b_0)));
+}
+
+function $num_Int_show(_a_0) {
+  if (_a_0.$ === "Pos") {
+    const _n_0 = _a_0["n"];
+    return $Nat_show(_n_0);
+  } else {
+    const _n_1 = _a_0["n"];
+    const _x_0 = ($Nat_show(nat_chk(_n_1 + 1)));
+    return ("-" + _x_0);
+  }
+}
+
+function $num_Rat_num(_r_0) {
+  const _n_0 = _r_0["num"];
+  return _n_0;
+}
+
+function $num_Rat_den(_r_0) {
+  const _d_0 = _r_0["dpred"];
+  return nat_chk(_d_0 + 1);
+}
+
+function $num_Rat_zero() {
+  return {$: "Rat", "num": {$: "Pos", "n": 0}, "dpred": 0};
+}
+
+function $num_Rat_one() {
+  return {$: "Rat", "num": {$: "Pos", "n": 1}, "dpred": 0};
+}
+
+function $num_Rat_of_int(_n_0) {
+  return {$: "Rat", "num": _n_0, "dpred": 0};
+}
+
+function $num_Rat_reduce_go(_n_0, _d_0, _g_0) {
+  const _x_0 = ($Nat_div(_d_0, _g_0));
+  return {$: "Rat", "num": ($num_Int_div_nat(_n_0, _g_0)), "dpred": (_x_0 < 1 ? 0 : _x_0 - 1)};
+}
+
+function $num_Rat_reduce(_n_0, _dp_0) {
+  return $num_Rat_reduce_go(_n_0, nat_chk(_dp_0 + 1), ($num_Nat_gcd(($num_Int_abs(_n_0)), nat_chk(_dp_0 + 1))));
+}
+
+function $num_Rat_make(_n_0, _d_0) {
+  if (_d_0.$ === "Pos") {
+    const _t_0 = _d_0["n"];
+    if (_t_0 === 0) {
+      return {$: "None"};
+    } else {
+      const _p_0 = (_t_0 - 1);
+      return {$: "Some", "value": ($num_Rat_reduce(_n_0, _p_0))};
+    }
+  } else {
+    const _p_1 = _d_0["n"];
+    return {$: "Some", "value": ($num_Rat_reduce(($num_Int_neg(_n_0)), _p_1))};
+  }
+}
+
+function $num_Rat_neg(_a_0) {
+  const _n_0 = _a_0["num"];
+  const _d_0 = _a_0["dpred"];
+  return {$: "Rat", "num": ($num_Int_neg(_n_0)), "dpred": _d_0};
+}
+
+function $num_Rat_add(_a_0, _b_0) {
+  const _x_0 = _a_0["num"];
+  const _p_0 = _a_0["dpred"];
+  const _y_0 = _b_0["num"];
+  const _q_0 = _b_0["dpred"];
+  return $num_Rat_reduce(($num_Int_add(($num_Int_mul(_x_0, {$: "Pos", "n": nat_chk(_q_0 + 1)})), ($num_Int_mul(_y_0, {$: "Pos", "n": nat_chk(_p_0 + 1)})))), ($num_Nat_mul_pred(_p_0, _q_0)));
+}
+
+function $num_Rat_sub(_a_0, _b_0) {
+  return $num_Rat_add(_a_0, ($num_Rat_neg(_b_0)));
+}
+
+function $num_Rat_mul(_a_0, _b_0) {
+  const _x_0 = _a_0["num"];
+  const _p_0 = _a_0["dpred"];
+  const _y_0 = _b_0["num"];
+  const _q_0 = _b_0["dpred"];
+  return $num_Rat_reduce(($num_Int_mul(_x_0, _y_0)), ($num_Nat_mul_pred(_p_0, _q_0)));
+}
+
+function $num_Rat_inv(_a_0) {
+  const _t_0 = _a_0["num"];
+  if (_t_0.$ === "Pos") {
+    const _t_1 = _t_0["n"];
+    if (_t_1 === 0) {
+      return {$: "None"};
+    } else {
+      const _n_0 = (_t_1 - 1);
+      const _d_1 = _a_0["dpred"];
+      return {$: "Some", "value": {$: "Rat", "num": {$: "Pos", "n": nat_chk(_d_1 + 1)}, "dpred": _n_0}};
+    }
+  } else {
+    const _n_1 = _t_0["n"];
+    const _d_2 = _a_0["dpred"];
+    return {$: "Some", "value": {$: "Rat", "num": {$: "Neg", "n": _d_2}, "dpred": _n_1}};
+  }
+}
+
+function $num_Rat_div_go(_a_0, _ib_0) {
+  if (_ib_0.$ === "None") {
+    return {$: "None"};
+  } else {
+    const _i_0 = _ib_0["value"];
+    return {$: "Some", "value": ($num_Rat_mul(_a_0, _i_0))};
+  }
+}
+
+function $num_Rat_div(_a_0, _b_0) {
+  return $num_Rat_div_go(_a_0, ($num_Rat_inv(_b_0)));
+}
+
+function $num_Rat_cmp(_a_0, _b_0) {
+  const _x_0 = _a_0["num"];
+  const _p_0 = _a_0["dpred"];
+  const _y_0 = _b_0["num"];
+  const _q_0 = _b_0["dpred"];
+  return $num_Int_cmp(($num_Int_mul(_x_0, {$: "Pos", "n": nat_chk(_q_0 + 1)})), ($num_Int_mul(_y_0, {$: "Pos", "n": nat_chk(_p_0 + 1)})));
+}
+
+function $num_Rat_is_eq(_a_0, _b_0) {
+  return $Cmp_is_eq(($num_Rat_cmp(_a_0, _b_0)));
+}
+
+function $num_Rat_is_le(_a_0, _b_0) {
+  return $Cmp_is_le(($num_Rat_cmp(_a_0, _b_0)));
+}
+
+function $num_Rat_show_den(_d_0) {
+  if (_d_0 === 0) {
+    return "";
+  } else {
+    const _p_0 = (_d_0 - 1);
+    const _x_0 = ($Nat_show(nat_chk(_p_0 + 2)));
+    return ("/" + _x_0);
+  }
+}
+
+function $num_Rat_show(_r_0) {
+  const _n_0 = _r_0["num"];
+  const _d_0 = _r_0["dpred"];
+  const _x_0 = ($num_Int_show(_n_0));
+  const _x_1 = ($num_Rat_show_den(_d_0));
+  return (_x_0 + _x_1);
+}
+
+function $Point_zip(_xs_0, _ys_0) {
+  if (_xs_0.$ === "Con") {
+    const _x_0 = _xs_0["head"];
+    const _xt_0 = _xs_0["tail"];
+    if (_ys_0.$ === "Con") {
+      const _y_0 = _ys_0["head"];
+      const _yt_0 = _ys_0["tail"];
+      return {$: "Con", "head": {$: "Pt", "x": _x_0, "y": _y_0}, "tail": ($Point_zip(_xt_0, _yt_0))};
+    } else {
+      return {$: "Nil"};
+    }
+  } else {
+    return {$: "Nil"};
+  }
+}
+
+function $Limit_k() {
+  return nat_chk(16777216 * 8388608);
+}
+
+function $Limit_ok(_v_0) {
+  return $Nat_is_le(_v_0, ($Limit_k()));
+}
+
+function $Limit_mul_go(_ok_0, _a_0, _b_0) {
+  if (_ok_0) {
+    return nat_chk(_a_0 * _b_0);
+  } else {
+    return nat_chk(($Limit_k()) + 1);
+  }
+}
+
+function $Limit_mul(_a_0, _b_0) {
+  if (_a_0 === 0) {
+    return 0;
+  } else {
+    const _p_0 = (_a_0 - 1);
+    return $Limit_mul_go(($Nat_is_le(_b_0, ($Nat_div(($Limit_k()), nat_chk(_p_0 + 1))))), nat_chk(_p_0 + 1), _b_0);
+  }
+}
+
+function $Limit_add_go(_ok_0, _a_0, _b_0) {
+  if (_ok_0) {
+    return nat_chk(_a_0 + _b_0);
+  } else {
+    return nat_chk(($Limit_k()) + 1);
+  }
+}
+
+function $Limit_add(_a_0, _b_0) {
+  const _x_0 = ($Limit_k());
+  return $Limit_add_go(($Nat_is_le(_a_0, (_x_0 < _b_0 ? 0 : _x_0 - _b_0))), _a_0, _b_0);
+}
+
+function $Limit_lcm(_a_0, _b_0) {
+  return $Limit_mul(($Nat_div(_a_0, ($num_Nat_gcd(_a_0, _b_0)))), _b_0);
+}
+
+function $Limit_dens($0, $1) {
+  for (;;) {
+    {
+      const _rs_0 = $0;
+      const _acc_0 = $1;
+      if (_rs_0.$ === "Nil") {
+        return _acc_0;
+      } else {
+        const _r_0 = _rs_0["head"];
+        const _t_0 = _rs_0["tail"];
+        $0 = _t_0;
+        $1 = ($Limit_lcm(_acc_0, ($num_Rat_den(_r_0))));
+        continue;
+      }
+    }
+  }
+}
+
+function $Limit_scaled(_l_0, _r_0) {
+  const _n_0 = _r_0["num"];
+  const _d_0 = _r_0["dpred"];
+  return $Limit_mul(($num_Int_abs(_n_0)), ($Nat_div(_l_0, nat_chk(_d_0 + 1))));
+}
+
+function $Limit_mag(_rs_0, _l_0) {
+  if (_rs_0.$ === "Nil") {
+    return 0;
+  } else {
+    const _r_0 = _rs_0["head"];
+    const _t_0 = _rs_0["tail"];
+    const _x_0 = ($Limit_scaled(_l_0, _r_0));
+    const _x_1 = ($Limit_mag(_t_0, _l_0));
+    return (_x_0 > _x_1 ? _x_0 : _x_1);
+  }
+}
+
+function $Limit_fit(_n_0, _l_0, _b_0) {
+  const _x_0 = ($Limit_mul(2, _b_0));
+  return $Bool_and(($Limit_ok(_l_0)), ($Limit_ok(($Limit_mul(($Limit_mul(($Limit_mul(_n_0, _n_0)), ($Limit_mul(_b_0, _b_0)))), (_x_0 > _l_0 ? _x_0 : _l_0))))));
+}
+
+function $Stats_zero() {
+  return {$: "Stats", "n": {$: "Pos", "n": 0}, "sx": {$: "Pos", "n": 0}, "sy": {$: "Pos", "n": 0}, "sxy": {$: "Pos", "n": 0}, "sxx": {$: "Pos", "n": 0}};
+}
+
+function $Stats_add(_a_0, _b_0) {
+  const _n1_0 = _a_0["n"];
+  const _x1_0 = _a_0["sx"];
+  const _y1_0 = _a_0["sy"];
+  const _xy1_0 = _a_0["sxy"];
+  const _xx1_0 = _a_0["sxx"];
+  const _n2_0 = _b_0["n"];
+  const _x2_0 = _b_0["sx"];
+  const _y2_0 = _b_0["sy"];
+  const _xy2_0 = _b_0["sxy"];
+  const _xx2_0 = _b_0["sxx"];
+  return {$: "Stats", "n": ($num_Int_add(_n1_0, _n2_0)), "sx": ($num_Int_add(_x1_0, _x2_0)), "sy": ($num_Int_add(_y1_0, _y2_0)), "sxy": ($num_Int_add(_xy1_0, _xy2_0)), "sxx": ($num_Int_add(_xx1_0, _xx2_0))};
+}
+
+function $Stats_scale(_l_0, _r_0) {
+  const _n_0 = _r_0["num"];
+  const _d_0 = _r_0["dpred"];
+  return $num_Int_mul(_n_0, {$: "Pos", "n": ($Nat_div(_l_0, nat_chk(_d_0 + 1)))});
+}
+
+function $Stats_point_go(_x_0, _y_0) {
+  return {$: "Stats", "n": {$: "Pos", "n": 1}, "sx": _x_0, "sy": _y_0, "sxy": ($num_Int_mul(_x_0, _y_0)), "sxx": ($num_Int_mul(_x_0, _x_0))};
+}
+
+function $Stats_point(_l_0, _p_0) {
+  const _x_0 = _p_0["x"];
+  const _y_0 = _p_0["y"];
+  return $Stats_point_go(($Stats_scale(_l_0, _x_0)), ($Stats_scale(_l_0, _y_0)));
+}
+
+function $Stats_seq(_l_0, _ps_0) {
+  if (_ps_0.$ === "Nil") {
+    return $Stats_zero();
+  } else {
+    const _p_0 = _ps_0["head"];
+    const _t_0 = _ps_0["tail"];
+    return $Stats_add(($Stats_point(_l_0, _p_0)), ($Stats_seq(_l_0, _t_0)));
+  }
+}
+
+function $Tree_leaves(_ps_0) {
+  if (_ps_0.$ === "Nil") {
+    return {$: "Nil"};
+  } else {
+    const _p_0 = _ps_0["head"];
+    const _t_0 = _ps_0["tail"];
+    return {$: "Con", "head": {$: "TLeaf", "p": _p_0}, "tail": ($Tree_leaves(_t_0))};
+  }
+}
+
+function $Tree_pairs(_ts_0) {
+  if (_ts_0.$ === "Con") {
+    const _a_0 = _ts_0["head"];
+    const _t_0 = _ts_0["tail"];
+    if (_t_0.$ === "Con") {
+      const _b_0 = _t_0["head"];
+      const _t_1 = _t_0["tail"];
+      return {$: "Con", "head": {$: "TNode", "l": _a_0, "r": _b_0}, "tail": ($Tree_pairs(_t_1))};
+    } else {
+      return {$: "Con", "head": _a_0, "tail": _t_0};
+    }
+  } else {
+    return _ts_0;
+  }
+}
+
+function $Tree_rounds($0, $1) {
+  for (;;) {
+    {
+      const _fuel_0 = $0;
+      const _ts_0 = $1;
+      if (_fuel_0 === 0) {
+        return _ts_0;
+      } else {
+        const _f_0 = (_fuel_0 - 1);
+        $0 = _f_0;
+        $1 = ($Tree_pairs(_ts_0));
+        continue;
+      }
+    }
+  }
+}
+
+function $Tree_join(_ts_0) {
+  if (_ts_0.$ === "Nil") {
+    return {$: "TNil"};
+  } else {
+    const _t_0 = _ts_0["head"];
+    const _t_1 = _ts_0["tail"];
+    if (_t_1.$ === "Nil") {
+      return _t_0;
+    } else {
+      return {$: "TNode", "l": _t_0, "r": ($Tree_join(_t_1))};
+    }
+  }
+}
+
+function $Tree_of_list(_n_0, _ps_0) {
+  return $Tree_join(($Tree_rounds(_n_0, ($Tree_leaves(_ps_0)))));
+}
+
+function $Tree_stats(_l_0, _t_0) {
+  if (_t_0.$ === "TNil") {
+    return $Stats_zero();
+  } else if (_t_0.$ === "TLeaf") {
+    const _p_0 = _t_0["p"];
+    return $Stats_point(_l_0, _p_0);
+  } else {
+    const _a_0 = _t_0["l"];
+    const _b_0 = _t_0["r"];
+    const _sa_0 = ($Tree_stats(_l_0, _a_0));
+    const _sb_0 = ($Tree_stats(_l_0, _b_0));
+    return $Stats_add(_sa_0, _sb_0);
+  }
+}
+
+function $Stats_par(_l_0, _ps_0) {
+  return $Tree_stats(_l_0, ($Tree_of_list(($List_length(_ps_0)), _ps_0)));
+}
+
+function $LinearRegression_done(_fi_0, _a_0, _b_0) {
+  if (_a_0.$ === "Some") {
+    const _a_1 = _a_0["value"];
+    if (_b_0.$ === "Some") {
+      const _b_1 = _b_0["value"];
+      return {$: "Done", "value": {$: "LinearRegression", "fit_intercept": _fi_0, "coef": _a_1, "intercept": _b_1}};
+    } else {
+      return {$: "Fail", "error": {$: "Degenerate"}};
+    }
+  } else {
+    return {$: "Fail", "error": {$: "Degenerate"}};
+  }
+}
+
+function $LinearRegression_solve(_l_0, _s_0) {
+  const _n_0 = _s_0["n"];
+  const _sx_0 = _s_0["sx"];
+  const _sy_0 = _s_0["sy"];
+  const _sxy_0 = _s_0["sxy"];
+  const _sxx_0 = _s_0["sxx"];
+  const _d_0 = ($num_Int_sub(($num_Int_mul(_n_0, _sxx_0)), ($num_Int_mul(_sx_0, _sx_0))));
+  return $LinearRegression_done(true, ($num_Rat_make(($num_Int_sub(($num_Int_mul(_n_0, _sxy_0)), ($num_Int_mul(_sx_0, _sy_0)))), _d_0)), ($num_Rat_make(($num_Int_sub(($num_Int_mul(_sy_0, _sxx_0)), ($num_Int_mul(_sx_0, _sxy_0)))), ($num_Int_mul({$: "Pos", "n": _l_0}, _d_0)))));
+}
+
+function $LinearRegression_solve_origin(_s_0) {
+  const _sxy_0 = _s_0["sxy"];
+  const _sxx_0 = _s_0["sxx"];
+  return $LinearRegression_done(false, ($num_Rat_make(_sxy_0, _sxx_0)), {$: "Some", "value": ($num_Rat_zero())});
+}
+
+function $LinearRegression_fit_stats(_fit_intercept_0, _l_0, _s_0) {
+  if (_fit_intercept_0) {
+    return $LinearRegression_solve(_l_0, _s_0);
+  } else {
+    return $LinearRegression_solve_origin(_s_0);
+  }
+}
+
+function $LinearRegression_fit_check(_ok_0, _fit_intercept_0, _l_0, _xs_0, _ys_0) {
+  if (!_ok_0) {
+    return {$: "Fail", "error": {$: "TooLarge"}};
+  } else {
+    return $LinearRegression_fit_stats(_fit_intercept_0, _l_0, ($Stats_par(_l_0, ($Point_zip(_xs_0, _ys_0)))));
+  }
+}
+
+function $LinearRegression_fit_data(_fit_intercept_0, _xs_0, _ys_0) {
+  if (_xs_0.$ === "Nil") {
+    return {$: "Fail", "error": {$: "Empty"}};
+  } else {
+    const _x_0 = _xs_0["head"];
+    const _t_0 = _xs_0["tail"];
+    const _l_0 = ($Limit_dens(_ys_0, ($Limit_dens({$: "Con", "head": _x_0, "tail": _t_0}, 1))));
+    const _x_1 = ($Limit_mag({$: "Con", "head": _x_0, "tail": _t_0}, _l_0));
+    const _x_2 = ($Limit_mag(_ys_0, _l_0));
+    const _b_0 = (_x_1 > _x_2 ? _x_1 : _x_2);
+    return $LinearRegression_fit_check(($Limit_fit(($List_length(_ys_0)), _l_0, _b_0)), _fit_intercept_0, _l_0, {$: "Con", "head": _x_0, "tail": _t_0}, _ys_0);
+  }
+}
+
+function $LinearRegression_fit_sizes(_fit_intercept_0, _same_0, _xs_0, _ys_0) {
+  if (_same_0) {
+    return $LinearRegression_fit_data(_fit_intercept_0, _xs_0, _ys_0);
+  } else {
+    return {$: "Fail", "error": {$: "LengthMismatch"}};
+  }
+}
+
+function $LinearRegression_fit(_fit_intercept_0, _xs_0, _ys_0) {
+  return $LinearRegression_fit_sizes(_fit_intercept_0, ($Nat_is_eq(($List_length(_xs_0)), ($List_length(_ys_0)))), _xs_0, _ys_0);
+}
+
+function $Common_of_go(_p_0, _q_0, _r_0, _s_0, _d_0) {
+  return {$: "Common", "a": ($num_Int_mul(_p_0, {$: "Pos", "n": ($Nat_div(_d_0, _q_0))})), "b": ($num_Int_mul(_r_0, {$: "Pos", "n": ($Nat_div(_d_0, _s_0))})), "d": _d_0};
+}
+
+function $Common_of(_m_0) {
+  const _t_0 = _m_0["coef"];
+  const _p_0 = _t_0["num"];
+  const _q_0 = _t_0["dpred"];
+  const _t_1 = _m_0["intercept"];
+  const _r_0 = _t_1["num"];
+  const _s_0 = _t_1["dpred"];
+  return $Common_of_go(_p_0, nat_chk(_q_0 + 1), _r_0, nat_chk(_s_0 + 1), ($num_Nat_lcm(nat_chk(_q_0 + 1), nat_chk(_s_0 + 1))));
+}
+
+function $Limit_common_go(_p_0, _q_0, _r_0, _s_0, _d_0) {
+  const _x_0 = ($Limit_mul(_p_0, ($Nat_div(_d_0, _q_0))));
+  const _x_1 = ($Limit_mul(_r_0, ($Nat_div(_d_0, _s_0))));
+  const _x_2 = (_x_0 > _x_1 ? _x_0 : _x_1);
+  return (_d_0 > _x_2 ? _d_0 : _x_2);
+}
+
+function $Limit_common(_m_0) {
+  const _t_0 = _m_0["coef"];
+  const _p_0 = _t_0["num"];
+  const _q_0 = _t_0["dpred"];
+  const _t_1 = _m_0["intercept"];
+  const _r_0 = _t_1["num"];
+  const _s_0 = _t_1["dpred"];
+  return $Limit_common_go(($num_Int_abs(_p_0)), nat_chk(_q_0 + 1), ($num_Int_abs(_r_0)), nat_chk(_s_0 + 1), ($Limit_lcm(nat_chk(_q_0 + 1), nat_chk(_s_0 + 1))));
+}
+
+function $Common_at(_c_0, _x_0) {
+  const _a_0 = _c_0["a"];
+  const _b_0 = _c_0["b"];
+  const _d_0 = _c_0["d"];
+  const _u_0 = _x_0["num"];
+  const _vp_0 = _x_0["dpred"];
+  const _x_1 = nat_chk(_vp_0 + 1);
+  const _x_2 = nat_chk(_d_0 * _x_1);
+  return $num_Rat_reduce(($num_Int_add(($num_Int_mul(_a_0, _u_0)), ($num_Int_mul(_b_0, {$: "Pos", "n": nat_chk(_vp_0 + 1)})))), (_x_2 < 1 ? 0 : _x_2 - 1));
+}
+
+function $Limit_at(_c_0, _x_0) {
+  const _a_0 = _c_0["a"];
+  const _b_0 = _c_0["b"];
+  const _d_0 = _c_0["d"];
+  const _u_0 = _x_0["num"];
+  const _vp_0 = _x_0["dpred"];
+  const _x_1 = ($Limit_add(($Limit_mul(($num_Int_abs(_a_0)), ($num_Int_abs(_u_0)))), ($Limit_mul(($num_Int_abs(_b_0)), nat_chk(_vp_0 + 1)))));
+  const _x_2 = ($Limit_mul(_d_0, nat_chk(_vp_0 + 1)));
+  return (_x_1 > _x_2 ? _x_1 : _x_2);
+}
+
+function $Limit_predict(_c_0, _xs_0) {
+  if (_xs_0.$ === "Nil") {
+    return 0;
+  } else {
+    const _x_0 = _xs_0["head"];
+    const _t_0 = _xs_0["tail"];
+    const _x_1 = ($Limit_at(_c_0, _x_0));
+    const _x_2 = ($Limit_predict(_c_0, _t_0));
+    return (_x_1 > _x_2 ? _x_1 : _x_2);
+  }
+}
+
+function $LinearRegression_predict_go(_c_0, _xs_0) {
+  if (_xs_0.$ === "Nil") {
+    return {$: "Nil"};
+  } else {
+    const _x_0 = _xs_0["head"];
+    const _t_0 = _xs_0["tail"];
+    return {$: "Con", "head": ($Common_at(_c_0, _x_0)), "tail": ($LinearRegression_predict_go(_c_0, _t_0))};
+  }
+}
+
+function $LinearRegression_predict_check(_ok_0, _c_0, _xs_0) {
+  if (!_ok_0) {
+    return {$: "Fail", "error": {$: "TooLarge"}};
+  } else {
+    return {$: "Done", "value": ($LinearRegression_predict_go(_c_0, _xs_0))};
+  }
+}
+
+function $LinearRegression_predict_model(_ok_0, _m_0, _xs_0) {
+  if (!_ok_0) {
+    return {$: "Fail", "error": {$: "TooLarge"}};
+  } else {
+    const _c_0 = ($Common_of(_m_0));
+    return $LinearRegression_predict_check(($Limit_ok(($Limit_predict(_c_0, _xs_0)))), _c_0, _xs_0);
+  }
+}
+
+function $LinearRegression_predict(_m_0, _xs_0) {
+  return $LinearRegression_predict_model(($Limit_ok(($Limit_common(_m_0)))), _m_0, _xs_0);
+}
+
+function $Common_d(_c_0) {
+  const _d_0 = _c_0["d"];
+  return _d_0;
+}
+
+function $Limit_score_den($0, $1, $2, $3) {
+  for (;;) {
+    {
+      const _xs_0 = $0;
+      const _ys_0 = $1;
+      const _d_0 = $2;
+      const _acc_0 = $3;
+      if (_xs_0.$ === "Con") {
+        const _x_0 = _xs_0["head"];
+        const _xt_0 = _xs_0["tail"];
+        if (_ys_0.$ === "Con") {
+          const _y_0 = _ys_0["head"];
+          const _yt_0 = _ys_0["tail"];
+          $0 = _xt_0;
+          $1 = _yt_0;
+          $2 = _d_0;
+          $3 = ($Limit_lcm(($Limit_lcm(_acc_0, ($Limit_mul(_d_0, ($num_Rat_den(_x_0)))))), ($num_Rat_den(_y_0))));
+          continue;
+        } else {
+          return _acc_0;
+        }
+      } else {
+        return _acc_0;
+      }
+    }
+  }
+}
+
+function $Limit_score_point(_c_0, _t_0, _x_0, _y_0) {
+  const _a_0 = _c_0["a"];
+  const _b_0 = _c_0["b"];
+  const _d_0 = _c_0["d"];
+  const _u_0 = _x_0["num"];
+  const _vp_0 = _x_0["dpred"];
+  const _w_0 = _y_0["num"];
+  const _zp_0 = _y_0["dpred"];
+  const _x_1 = ($Limit_mul(($Limit_add(($Limit_mul(($num_Int_abs(_a_0)), ($num_Int_abs(_u_0)))), ($Limit_mul(($num_Int_abs(_b_0)), nat_chk(_vp_0 + 1))))), ($Nat_div(_t_0, ($Limit_mul(_d_0, nat_chk(_vp_0 + 1)))))));
+  const _x_2 = ($Limit_mul(($num_Int_abs(_w_0)), ($Nat_div(_t_0, nat_chk(_zp_0 + 1)))));
+  return (_x_1 > _x_2 ? _x_1 : _x_2);
+}
+
+function $Limit_score(_c_0, _t_0, _xs_0, _ys_0) {
+  if (_xs_0.$ === "Con") {
+    const _x_0 = _xs_0["head"];
+    const _xt_0 = _xs_0["tail"];
+    if (_ys_0.$ === "Con") {
+      const _y_0 = _ys_0["head"];
+      const _yt_0 = _ys_0["tail"];
+      const _x_1 = ($Limit_score_point(_c_0, _t_0, _x_0, _y_0));
+      const _x_2 = ($Limit_score(_c_0, _t_0, _xt_0, _yt_0));
+      return (_x_1 > _x_2 ? _x_1 : _x_2);
+    } else {
+      return 0;
+    }
+  } else {
+    return 0;
+  }
+}
+
+function $Sums_point_go(_y_0, _p_0) {
+  const _r_0 = ($num_Int_sub(_y_0, _p_0));
+  return {$: "Sums", "sy": _y_0, "syy": ($num_Int_mul(_y_0, _y_0)), "srr": ($num_Int_mul(_r_0, _r_0))};
+}
+
+function $Sums_point(_c_0, _t_0, _x_0, _y_0) {
+  const _a_0 = _c_0["a"];
+  const _b_0 = _c_0["b"];
+  const _d_0 = _c_0["d"];
+  const _u_0 = _x_0["num"];
+  const _vp_0 = _x_0["dpred"];
+  const _w_0 = _y_0["num"];
+  const _zp_0 = _y_0["dpred"];
+  const _x_1 = nat_chk(_vp_0 + 1);
+  return $Sums_point_go(($num_Int_mul(_w_0, {$: "Pos", "n": ($Nat_div(_t_0, nat_chk(_zp_0 + 1)))})), ($num_Int_mul(($num_Int_add(($num_Int_mul(_a_0, _u_0)), ($num_Int_mul(_b_0, {$: "Pos", "n": nat_chk(_vp_0 + 1)})))), {$: "Pos", "n": ($Nat_div(_t_0, nat_chk(_d_0 * _x_1)))})));
+}
+
+function $Sums_add(_s_0, _t_0) {
+  const _y1_0 = _s_0["sy"];
+  const _yy1_0 = _s_0["syy"];
+  const _rr1_0 = _s_0["srr"];
+  const _y2_0 = _t_0["sy"];
+  const _yy2_0 = _t_0["syy"];
+  const _rr2_0 = _t_0["srr"];
+  return {$: "Sums", "sy": ($num_Int_add(_y1_0, _y2_0)), "syy": ($num_Int_add(_yy1_0, _yy2_0)), "srr": ($num_Int_add(_rr1_0, _rr2_0))};
+}
+
+function $Sums_of(_c_0, _t_0, _xs_0, _ys_0) {
+  if (_xs_0.$ === "Con") {
+    const _x_0 = _xs_0["head"];
+    const _xt_0 = _xs_0["tail"];
+    if (_ys_0.$ === "Con") {
+      const _y_0 = _ys_0["head"];
+      const _yt_0 = _ys_0["tail"];
+      return $Sums_add(($Sums_point(_c_0, _t_0, _x_0, _y_0)), ($Sums_of(_c_0, _t_0, _xt_0, _yt_0)));
+    } else {
+      return {$: "Sums", "sy": {$: "Pos", "n": 0}, "syy": {$: "Pos", "n": 0}, "srr": {$: "Pos", "n": 0}};
+    }
+  } else {
+    return {$: "Sums", "sy": {$: "Pos", "n": 0}, "syy": {$: "Pos", "n": 0}, "srr": {$: "Pos", "n": 0}};
+  }
+}
+
+function $LinearRegression_score_ratio(_r_0) {
+  if (_r_0.$ === "None") {
+    return {$: "Fail", "error": {$: "Degenerate"}};
+  } else {
+    const _q_0 = _r_0["value"];
+    return {$: "Done", "value": _q_0};
+  }
+}
+
+function $LinearRegression_score_finish(_n_0, _s_0) {
+  const _sy_0 = _s_0["sy"];
+  const _syy_0 = _s_0["syy"];
+  const _srr_0 = _s_0["srr"];
+  const _t_0 = ($num_Int_sub(($num_Int_mul(_n_0, _syy_0)), ($num_Int_mul(_sy_0, _sy_0))));
+  return $LinearRegression_score_ratio(($num_Rat_make(($num_Int_sub(_t_0, ($num_Int_mul(_n_0, _srr_0)))), _t_0)));
+}
+
+function $LinearRegression_score_check(_ok_0, _n_0, _c_0, _t_0, _xs_0, _ys_0) {
+  if (!_ok_0) {
+    return {$: "Fail", "error": {$: "TooLarge"}};
+  } else {
+    return $LinearRegression_score_finish({$: "Pos", "n": _n_0}, ($Sums_of(_c_0, _t_0, _xs_0, _ys_0)));
+  }
+}
+
+function $LinearRegression_score_model(_ok_0, _m_0, _n_0, _xs_0, _ys_0) {
+  if (!_ok_0) {
+    return {$: "Fail", "error": {$: "TooLarge"}};
+  } else {
+    const _c_0 = ($Common_of(_m_0));
+    const _t_0 = ($Limit_score_den(_xs_0, _ys_0, ($Common_d(_c_0)), 1));
+    const _v_0 = ($Limit_score(_c_0, _t_0, _xs_0, _ys_0));
+    return $LinearRegression_score_check(($Bool_and(($Limit_ok(_t_0)), ($Limit_ok(($Limit_mul(($Limit_mul(4, ($Limit_mul(_n_0, _n_0)))), ($Limit_mul(_v_0, _v_0)))))))), _n_0, _c_0, _t_0, _xs_0, _ys_0);
+  }
+}
+
+function $LinearRegression_score_data(_m_0, _xs_0, _ys_0) {
+  if (_xs_0.$ === "Nil") {
+    return {$: "Fail", "error": {$: "Empty"}};
+  } else {
+    const _x_0 = _xs_0["head"];
+    const _t_0 = _xs_0["tail"];
+    return $LinearRegression_score_model(($Limit_ok(($Limit_common(_m_0)))), _m_0, ($List_length(_ys_0)), {$: "Con", "head": _x_0, "tail": _t_0}, _ys_0);
+  }
+}
+
+function $LinearRegression_score_sizes(_m_0, _same_0, _xs_0, _ys_0) {
+  if (!_same_0) {
+    return {$: "Fail", "error": {$: "LengthMismatch"}};
+  } else {
+    return $LinearRegression_score_data(_m_0, _xs_0, _ys_0);
+  }
+}
+
+function $LinearRegression_score(_m_0, _xs_0, _ys_0) {
+  return $LinearRegression_score_sizes(_m_0, ($Nat_is_eq(($List_length(_xs_0)), ($List_length(_ys_0)))), _xs_0, _ys_0);
+}
+
+function $Nat_mod(_a_0, _b_0) {
+  return $Pair_snd(nat_divmod(_a_0, _b_0));
+}
+
+function $Nat_div(_a_0, _b_0) {
+  return $Pair_fst(nat_divmod(_a_0, _b_0));
+}
+
+function $Cmp_is_eq(_c_0) {
+  if (_c_0.$ === "EQ") {
+    return true;
+  } else {
+    return false;
+  }
+}
+
+function $Cmp_is_le(_c_0) {
+  if (_c_0.$ === "GT") {
+    return false;
+  } else {
+    return true;
+  }
+}
+
+function $Nat_show(_n_0) {
+  const _m_0 = _n_0;
+  return $Nat_show_fin(_m_0, "", ($Nat_show_put(nat_divmod(_m_0, 10))));
+}
+
+function $Nat_is_le(_a_0, _b_0) {
+  return $Cmp_is_le(cmp_new(_a_0, _b_0));
+}
+
+function $Bool_and(_a_0, _b_0) {
+  if (!_a_0) {
+    return false;
+  } else {
+    return _b_0;
+  }
+}
+
+function $List_length(_xs_0) {
+  if (_xs_0.$ === "Nil") {
+    return 0;
+  } else {
+    const _t_0 = _xs_0["tail"];
+    return nat_chk(($List_length(_t_0)) + 1);
+  }
+}
+
+function $Nat_is_eq(_a_0, _b_0) {
+  return $Cmp_is_eq(cmp_new(_a_0, _b_0));
+}
+
+function $Pair_snd(_p_0) {
+  const _b_0 = _p_0["snd"];
+  return _b_0;
+}
+
+function $Pair_fst(_p_0) {
+  const _a_0 = _p_0["fst"];
+  return _a_0;
+}
+
+function $Nat_show_fin($0, $1, $2) {
+  let $pc = 0;
+  for (;;) switch ($pc) {
+    case 0: {
+      const _g_0 = $0;
+      const _acc_0 = $1;
+      const _dq_0 = $2;
+      const _d_0 = _dq_0["fst"];
+      const _t_0 = _dq_0["snd"];
+      if (_t_0 === 0) {
+        return (_d_0 + _acc_0);
+      } else {
+        const _p_0 = (_t_0 - 1);
+        $0 = _g_0;
+        $1 = nat_chk(_p_0 + 1);
+        $2 = (_d_0 + _acc_0);
+        $pc = 1; continue;
+      }
+    }
+    case 1: {
+      const _f_0 = $0;
+      const _n_0 = $1;
+      const _acc_0 = $2;
+      if (_f_0 === 0) {
+        return _acc_0;
+      } else {
+        const _g_0 = (_f_0 - 1);
+        $0 = _g_0;
+        $1 = _acc_0;
+        $2 = ($Nat_show_put(nat_divmod(_n_0, 10)));
+        $pc = 0; continue;
+      }
+    }
+  }
+}
+
+function $Nat_show_put(_qr_0) {
+  const _q_0 = _qr_0["fst"];
+  const _r_0 = _qr_0["snd"];
+  const _x_0 = nat_chk(48 + _r_0);
+  return {$: "Tuple", "fst": char_new((_x_0 >>> 0)), "snd": _q_0};
+}
+
+function $Nat_show_go($0, $1, $2) {
+  let $pc = 1;
+  for (;;) switch ($pc) {
+    case 0: {
+      const _g_0 = $0;
+      const _acc_0 = $1;
+      const _dq_0 = $2;
+      const _d_0 = _dq_0["fst"];
+      const _t_0 = _dq_0["snd"];
+      if (_t_0 === 0) {
+        return (_d_0 + _acc_0);
+      } else {
+        const _p_0 = (_t_0 - 1);
+        $0 = _g_0;
+        $1 = nat_chk(_p_0 + 1);
+        $2 = (_d_0 + _acc_0);
+        $pc = 1; continue;
+      }
+    }
+    case 1: {
+      const _f_0 = $0;
+      const _n_0 = $1;
+      const _acc_0 = $2;
+      if (_f_0 === 0) {
+        return _acc_0;
+      } else {
+        const _g_0 = (_f_0 - 1);
+        $0 = _g_0;
+        $1 = _acc_0;
+        $2 = ($Nat_show_put(nat_divmod(_n_0, 10)));
+        $pc = 0; continue;
+      }
+    }
+  }
+}
+return {
+  "num:Nat.gcd.go": run_lib((a0,a1,a2) => run_loop($num_Nat_gcd_go(nat_in(a0),nat_in(a1),nat_in(a2))), 3),
+  "num:Nat.gcd": run_lib((a0,a1) => run_loop($num_Nat_gcd(nat_in(a0),nat_in(a1))), 2),
+  "num:Nat.lcm": run_lib((a0,a1) => run_loop($num_Nat_lcm(nat_in(a0),nat_in(a1))), 2),
+  "num:Nat.mul_pred": run_lib((a0,a1) => run_loop($num_Nat_mul_pred(nat_in(a0),nat_in(a1))), 2),
+  "num:Int.zero": run_lib(() => run_loop($num_Int_zero()), 0),
+  "num:Int.one": run_lib(() => run_loop($num_Int_one()), 0),
+  "num:Int.minus": run_lib((a0) => run_loop($num_Int_minus(nat_in(a0))), 1),
+  "num:Int.sub_nat.go": run_lib((a0,a1,a2) => run_loop($num_Int_sub_nat_go(a0,nat_in(a1),nat_in(a2))), 3),
+  "num:Int.sub_nat": run_lib((a0,a1) => run_loop($num_Int_sub_nat(nat_in(a0),nat_in(a1))), 2),
+  "num:Int.neg": run_lib((a0) => run_loop($num_Int_neg(a0)), 1),
+  "num:Int.add": run_lib((a0,a1) => run_loop($num_Int_add(a0,a1)), 2),
+  "num:Int.sub": run_lib((a0,a1) => run_loop($num_Int_sub(a0,a1)), 2),
+  "num:Int.mul": run_lib((a0,a1) => run_loop($num_Int_mul(a0,a1)), 2),
+  "num:Int.abs": run_lib((a0) => run_loop($num_Int_abs(a0)), 1),
+  "num:Int.div_nat": run_lib((a0,a1) => run_loop($num_Int_div_nat(a0,nat_in(a1))), 2),
+  "num:Int.cmp": run_lib((a0,a1) => run_loop($num_Int_cmp(a0,a1)), 2),
+  "num:Int.is_eq": run_lib((a0,a1) => run_loop($num_Int_is_eq(a0,a1)), 2),
+  "num:Int.is_le": run_lib((a0,a1) => run_loop($num_Int_is_le(a0,a1)), 2),
+  "num:Int.show": run_lib((a0) => str_out(run_loop($num_Int_show(a0))), 1),
+  "num:Rat.num": run_lib((a0) => run_loop($num_Rat_num(a0)), 1),
+  "num:Rat.den": run_lib((a0) => run_loop($num_Rat_den(a0)), 1),
+  "num:Rat.zero": run_lib(() => run_loop($num_Rat_zero()), 0),
+  "num:Rat.one": run_lib(() => run_loop($num_Rat_one()), 0),
+  "num:Rat.of_int": run_lib((a0) => run_loop($num_Rat_of_int(a0)), 1),
+  "num:Rat.reduce.go": run_lib((a0,a1,a2) => run_loop($num_Rat_reduce_go(a0,nat_in(a1),nat_in(a2))), 3),
+  "num:Rat.reduce": run_lib((a0,a1) => run_loop($num_Rat_reduce(a0,nat_in(a1))), 2),
+  "num:Rat.make": run_lib((a0,a1) => run_loop($num_Rat_make(a0,a1)), 2),
+  "num:Rat.neg": run_lib((a0) => run_loop($num_Rat_neg(a0)), 1),
+  "num:Rat.add": run_lib((a0,a1) => run_loop($num_Rat_add(a0,a1)), 2),
+  "num:Rat.sub": run_lib((a0,a1) => run_loop($num_Rat_sub(a0,a1)), 2),
+  "num:Rat.mul": run_lib((a0,a1) => run_loop($num_Rat_mul(a0,a1)), 2),
+  "num:Rat.inv": run_lib((a0) => run_loop($num_Rat_inv(a0)), 1),
+  "num:Rat.div.go": run_lib((a0,a1) => run_loop($num_Rat_div_go(a0,a1)), 2),
+  "num:Rat.div": run_lib((a0,a1) => run_loop($num_Rat_div(a0,a1)), 2),
+  "num:Rat.cmp": run_lib((a0,a1) => run_loop($num_Rat_cmp(a0,a1)), 2),
+  "num:Rat.is_eq": run_lib((a0,a1) => run_loop($num_Rat_is_eq(a0,a1)), 2),
+  "num:Rat.is_le": run_lib((a0,a1) => run_loop($num_Rat_is_le(a0,a1)), 2),
+  "num:Rat.show.den": run_lib((a0) => str_out(run_loop($num_Rat_show_den(nat_in(a0)))), 1),
+  "num:Rat.show": run_lib((a0) => str_out(run_loop($num_Rat_show(a0))), 1),
+  "Point.zip": run_lib((a0,a1) => run_loop($Point_zip(a0,a1)), 2),
+  "Limit.k": run_lib(() => run_loop($Limit_k()), 0),
+  "Limit.ok": run_lib((a0) => run_loop($Limit_ok(nat_in(a0))), 1),
+  "Limit.mul.go": run_lib((a0,a1,a2) => run_loop($Limit_mul_go(a0,nat_in(a1),nat_in(a2))), 3),
+  "Limit.mul": run_lib((a0,a1) => run_loop($Limit_mul(nat_in(a0),nat_in(a1))), 2),
+  "Limit.add.go": run_lib((a0,a1,a2) => run_loop($Limit_add_go(a0,nat_in(a1),nat_in(a2))), 3),
+  "Limit.add": run_lib((a0,a1) => run_loop($Limit_add(nat_in(a0),nat_in(a1))), 2),
+  "Limit.lcm": run_lib((a0,a1) => run_loop($Limit_lcm(nat_in(a0),nat_in(a1))), 2),
+  "Limit.dens": run_lib((a0,a1) => run_loop($Limit_dens(a0,nat_in(a1))), 2),
+  "Limit.scaled": run_lib((a0,a1) => run_loop($Limit_scaled(nat_in(a0),a1)), 2),
+  "Limit.mag": run_lib((a0,a1) => run_loop($Limit_mag(a0,nat_in(a1))), 2),
+  "Limit.fit": run_lib((a0,a1,a2) => run_loop($Limit_fit(nat_in(a0),nat_in(a1),nat_in(a2))), 3),
+  "Stats.zero": run_lib(() => run_loop($Stats_zero()), 0),
+  "Stats.add": run_lib((a0,a1) => run_loop($Stats_add(a0,a1)), 2),
+  "Stats.scale": run_lib((a0,a1) => run_loop($Stats_scale(nat_in(a0),a1)), 2),
+  "Stats.point.go": run_lib((a0,a1) => run_loop($Stats_point_go(a0,a1)), 2),
+  "Stats.point": run_lib((a0,a1) => run_loop($Stats_point(nat_in(a0),a1)), 2),
+  "Stats.seq": run_lib((a0,a1) => run_loop($Stats_seq(nat_in(a0),a1)), 2),
+  "Tree.leaves": run_lib((a0) => run_loop($Tree_leaves(a0)), 1),
+  "Tree.pairs": run_lib((a0) => run_loop($Tree_pairs(a0)), 1),
+  "Tree.rounds": run_lib((a0,a1) => run_loop($Tree_rounds(nat_in(a0),a1)), 2),
+  "Tree.join": run_lib((a0) => run_loop($Tree_join(a0)), 1),
+  "Tree.of_list": run_lib((a0,a1) => run_loop($Tree_of_list(nat_in(a0),a1)), 2),
+  "Tree.stats": run_lib((a0,a1) => run_loop($Tree_stats(nat_in(a0),a1)), 2),
+  "Stats.par": run_lib((a0,a1) => run_loop($Stats_par(nat_in(a0),a1)), 2),
+  "LinearRegression.done": run_lib((a0,a1,a2) => run_loop($LinearRegression_done(a0,a1,a2)), 3),
+  "LinearRegression.solve": run_lib((a0,a1) => run_loop($LinearRegression_solve(nat_in(a0),a1)), 2),
+  "LinearRegression.solve_origin": run_lib((a0) => run_loop($LinearRegression_solve_origin(a0)), 1),
+  "LinearRegression.fit.stats": run_lib((a0,a1,a2) => run_loop($LinearRegression_fit_stats(a0,nat_in(a1),a2)), 3),
+  "LinearRegression.fit.check": run_lib((a0,a1,a2,a3,a4) => run_loop($LinearRegression_fit_check(a0,a1,nat_in(a2),a3,a4)), 5),
+  "LinearRegression.fit.data": run_lib((a0,a1,a2) => run_loop($LinearRegression_fit_data(a0,a1,a2)), 3),
+  "LinearRegression.fit.sizes": run_lib((a0,a1,a2,a3) => run_loop($LinearRegression_fit_sizes(a0,a1,a2,a3)), 4),
+  "LinearRegression.fit": run_lib((a0,a1,a2) => run_loop($LinearRegression_fit(a0,a1,a2)), 3),
+  "Common.of.go": run_lib((a0,a1,a2,a3,a4) => run_loop($Common_of_go(a0,nat_in(a1),a2,nat_in(a3),nat_in(a4))), 5),
+  "Common.of": run_lib((a0) => run_loop($Common_of(a0)), 1),
+  "Limit.common.go": run_lib((a0,a1,a2,a3,a4) => run_loop($Limit_common_go(nat_in(a0),nat_in(a1),nat_in(a2),nat_in(a3),nat_in(a4))), 5),
+  "Limit.common": run_lib((a0) => run_loop($Limit_common(a0)), 1),
+  "Common.at": run_lib((a0,a1) => run_loop($Common_at(a0,a1)), 2),
+  "Limit.at": run_lib((a0,a1) => run_loop($Limit_at(a0,a1)), 2),
+  "Limit.predict": run_lib((a0,a1) => run_loop($Limit_predict(a0,a1)), 2),
+  "LinearRegression.predict.go": run_lib((a0,a1) => run_loop($LinearRegression_predict_go(a0,a1)), 2),
+  "LinearRegression.predict.check": run_lib((a0,a1,a2) => run_loop($LinearRegression_predict_check(a0,a1,a2)), 3),
+  "LinearRegression.predict.model": run_lib((a0,a1,a2) => run_loop($LinearRegression_predict_model(a0,a1,a2)), 3),
+  "LinearRegression.predict": run_lib((a0,a1) => run_loop($LinearRegression_predict(a0,a1)), 2),
+  "Common.d": run_lib((a0) => run_loop($Common_d(a0)), 1),
+  "Limit.score_den": run_lib((a0,a1,a2,a3) => run_loop($Limit_score_den(a0,a1,nat_in(a2),nat_in(a3))), 4),
+  "Limit.score_point": run_lib((a0,a1,a2,a3) => run_loop($Limit_score_point(a0,nat_in(a1),a2,a3)), 4),
+  "Limit.score": run_lib((a0,a1,a2,a3) => run_loop($Limit_score(a0,nat_in(a1),a2,a3)), 4),
+  "Sums.point.go": run_lib((a0,a1) => run_loop($Sums_point_go(a0,a1)), 2),
+  "Sums.point": run_lib((a0,a1,a2,a3) => run_loop($Sums_point(a0,nat_in(a1),a2,a3)), 4),
+  "Sums.add": run_lib((a0,a1) => run_loop($Sums_add(a0,a1)), 2),
+  "Sums.of": run_lib((a0,a1,a2,a3) => run_loop($Sums_of(a0,nat_in(a1),a2,a3)), 4),
+  "LinearRegression.score.ratio": run_lib((a0) => run_loop($LinearRegression_score_ratio(a0)), 1),
+  "LinearRegression.score.finish": run_lib((a0,a1) => run_loop($LinearRegression_score_finish(a0,a1)), 2),
+  "LinearRegression.score.check": run_lib((a0,a1,a2,a3,a4,a5) => run_loop($LinearRegression_score_check(a0,nat_in(a1),a2,nat_in(a3),a4,a5)), 6),
+  "LinearRegression.score.model": run_lib((a0,a1,a2,a3,a4) => run_loop($LinearRegression_score_model(a0,a1,nat_in(a2),a3,a4)), 5),
+  "LinearRegression.score.data": run_lib((a0,a1,a2) => run_loop($LinearRegression_score_data(a0,a1,a2)), 3),
+  "LinearRegression.score.sizes": run_lib((a0,a1,a2,a3) => run_loop($LinearRegression_score_sizes(a0,a1,a2,a3)), 4),
+  "LinearRegression.score": run_lib((a0,a1,a2) => run_loop($LinearRegression_score(a0,a1,a2)), 3),
+};
+
+})();
+</script>
+<script>
+(() => {
+const K = 2n ** 47n, MAXN = 2n ** 48n - 1n;
+const $ = id => document.getElementById(id);
+
+const PRESETS = [
+  {name: "noisy", fi: true, px: "6, 10, -1/2",
+   data: "0 1.2\n1 2.9\n2 5.1\n3 7.2\n4 8.8\n5 11.1"},
+  {name: "on a line", fi: true, px: "4, 1/3",
+   data: "-2 -5\n-1 -7/2\n0 -2\n1 -1/2\n2 1\n3 5/2"},
+  {name: "fractions", fi: true, px: "0, 2/3",
+   data: "1/2 -1/3\n-3/2 2\n5/3 7/4\n4 -2/5"},
+  {name: "through 0", fi: false, px: "10",
+   data: "1 2\n2 5\n3 5\n4 9"},
+  {name: "one x", fi: true, px: "2",
+   data: "2 1\n2 3\n2 4"},
+  {name: "too big", fi: true, px: "1",
+   data: "30000 1\n1 2\n500 7"},
+];
+
+// Parsing: exact, into BigInt numerator / denominator
+function parseRat(s) {
+  let m, neg, n, d;
+  if ((m = s.match(/^([+-]?)(\d+)\/(\d+)$/))) {
+    neg = m[1] === "-"; n = BigInt(m[2]); d = BigInt(m[3]);
+  } else if ((m = s.match(/^([+-]?)(\d*)(?:\.(\d*))?$/)) && (m[2] || m[3])) {
+    const frac = m[3] || "";
+    neg = m[1] === "-"; n = BigInt((m[2] || "0") + frac); d = 10n ** BigInt(frac.length);
+  } else {
+    throw `"${s}" is not a number`;
+  }
+  if (d === 0n) throw `"${s}" divides by zero`;
+  if (n > MAXN || d > MAXN) throw `"${s}" is past Bend's 2⁴⁸ − 1 limit`;
+  return {neg, n, d};
+}
+
+// To and from Bend values
+const int = (neg, n) => neg && n > 0 ? {$: "Neg", n: n - 1} : {$: "Pos", n};
+const toRat = q => Bend["num:Rat.make"](int(q.neg, Number(q.n)), {$: "Pos", n: Number(q.d)}).value;
+const list = a => a.reduceRight((t, h) => ({$: "Con", head: h, tail: t}), {$: "Nil"});
+const array = l => { const a = []; for (; l.$ === "Con"; l = l.tail) a.push(l.head); return a; };
+const num = r => r.num.$ === "Pos" ? BigInt(r.num.n) : -BigInt(r.num.n) - 1n;
+const den = r => BigInt(r.dpred) + 1n;
+const approx = r => Number(num(r)) / Number(den(r));
+const exact = r => Bend["num:Rat.show"](r);
+function fmt(x) {
+  if (!isFinite(x)) return String(x);
+  const a = Math.abs(x);
+  if (a !== 0 && (a < 1e-4 || a >= 1e7)) return x.toExponential(4);
+  return String(Number(x.toPrecision(6)));
+}
+const show = r => den(r) === 1n ? exact(r) : `${exact(r)}<span class="ap">≈ ${fmt(approx(r))}</span>`;
+const esc = s => s.replace(/[&<>]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;"})[c]);
+
+function parseData(text) {
+  const xs = [], ys = [];
+  text.split("\n").forEach((line, i) => {
+    const t = line.replace(/#.*/, "").trim();
+    if (!t) return;
+    const parts = t.split(/[\s,;]+/);
+    if (parts.length !== 2) throw `line ${i + 1} needs exactly two numbers, x and y`;
+    try { xs.push(parseRat(parts[0])); ys.push(parseRat(parts[1])); }
+    catch (e) { throw `line ${i + 1}: ${e}`; }
+  });
+  return {xs, ys};
+}
+
+function errText(e, fi) {
+  switch (e.$) {
+    case "Empty": return "<b>Empty</b>: add at least one point.";
+    case "LengthMismatch": return "<b>LengthMismatch</b>: x and y need the same number of values.";
+    case "Degenerate": return fi
+      ? "<b>Degenerate</b>: every x is the same, so no single line fits best. Add a point with a different x."
+      : "<b>Degenerate</b>: every x is 0, so no line through the origin is determined.";
+    case "TooLarge": return "<b>TooLarge</b>: exact arithmetic on these values could pass Bend's 2⁴⁸ limit (see 4.). Use smaller values or fewer points.";
+  }
+  return String(e.$);
+}
+
+// The limit, recomputed exactly (BigInt) for display
+function gcd(a, b) { while (b) [a, b] = [b, a % b]; return a; }
+function limit(rs, n) {
+  let L = 1n;
+  for (const r of rs) { const d = den(r); L = L / gcd(L, d) * d; }
+  let B = 0n;
+  for (const r of rs) { const v = (num(r) < 0n ? -num(r) : num(r)) * (L / den(r)); if (v > B) B = v; }
+  const N = BigInt(n), m = 2n * B > L ? 2n * B : L;
+  return {L, B, need: N * N * B * B * m};
+}
+const big = v => v.toLocaleString("en-US");
+
+// Chart
+function chart(pts, model) {
+  const svg = $("chart"), W = 600, H = 340, P = {l: 52, r: 14, t: 14, b: 34};
+  if (!pts.length) { svg.innerHTML = ""; return; }
+  let x0 = Math.min(...pts.map(p => p.x)), x1 = Math.max(...pts.map(p => p.x));
+  let ys = pts.map(p => p.y);
+  if (model) ys = ys.concat([x0, x1].map(x => model.a * x + model.b));
+  let y0 = Math.min(...ys), y1 = Math.max(...ys);
+  if (x0 === x1) { x0 -= 1; x1 += 1; }
+  if (y0 === y1) { y0 -= 1; y1 += 1; }
+  const px = (x1 - x0) * .08, py = (y1 - y0) * .1;
+  x0 -= px; x1 += px; y0 -= py; y1 += py;
+  const sx = x => P.l + (x - x0) / (x1 - x0) * (W - P.l - P.r);
+  const sy = y => H - P.b - (y - y0) / (y1 - y0) * (H - P.t - P.b);
+  const ticks = (a, b) => {
+    const step = Math.pow(10, Math.floor(Math.log10((b - a) / 4)));
+    const s = [1, 2, 5, 10].map(k => k * step).find(k => (b - a) / k <= 6);
+    const out = [];
+    for (let v = Math.ceil(a / s) * s; v <= b + 1e-9; v += s) out.push(Number(v.toPrecision(10)));
+    return out;
+  };
+  let g = "";
+  for (const t of ticks(y0, y1)) g += `<line x1="${P.l}" x2="${W - P.r}" y1="${sy(t)}" y2="${sy(t)}" stroke="var(--line)" stroke-width="1"/><text x="${P.l - 8}" y="${sy(t) + 4}" text-anchor="end" fill="var(--faint)" font-size="12">${fmt(t)}</text>`;
+  for (const t of ticks(x0, x1)) g += `<text x="${sx(t)}" y="${H - P.b + 20}" text-anchor="middle" fill="var(--faint)" font-size="12">${fmt(t)}</text>`;
+  g += `<line x1="${P.l}" x2="${W - P.r}" y1="${H - P.b}" y2="${H - P.b}" stroke="var(--faint)" stroke-width="1"/>`;
+  if (model) {
+    for (const p of pts) g += `<line x1="${sx(p.x)}" x2="${sx(p.x)}" y1="${sy(p.y)}" y2="${sy(model.a * p.x + model.b)}" stroke="var(--ora)" stroke-width="1.5" stroke-dasharray="3 3"/>`;
+    g += `<line x1="${sx(x0)}" x2="${sx(x1)}" y1="${sy(model.a * x0 + model.b)}" y2="${sy(model.a * x1 + model.b)}" stroke="var(--vio)" stroke-width="2.5"/>`;
+  }
+  for (const p of pts) g += `<circle cx="${sx(p.x)}" cy="${sy(p.y)}" r="4.5" fill="var(--dot)"/>`;
+  svg.innerHTML = g;
+}
+
+let model = null, fitIntercept = true;
+
+function run() {
+  const fi = $("fi").checked;
+  fitIntercept = fi;
+  const err = $("fiterr");
+  err.hidden = true;
+  model = null;
+  let parsed;
+  try { parsed = parseData($("data").value); }
+  catch (e) {
+    err.innerHTML = esc(String(e)); err.hidden = false;
+    $("coef").textContent = $("intercept").textContent = $("r2").textContent = "–";
+    chart([], null); renderCall(null, fi); renderLimit([], 0); predict(); return;
+  }
+  const xs = parsed.xs.map(toRat), ys = parsed.ys.map(toRat);
+  const pts = xs.map((x, i) => ({x: approx(x), y: approx(ys[i])}));
+  renderLimit(xs.concat(ys), xs.length);
+  let res;
+  try { res = Bend["LinearRegression.fit"](fi, list(xs), list(ys)); }
+  catch (e) { res = {$: "Thrown", e}; }
+  if (res.$ === "Done") {
+    model = res.value;
+    $("coef").innerHTML = show(model.coef);
+    $("intercept").innerHTML = show(model.intercept);
+    const sc = Bend["LinearRegression.score"](model, list(xs), list(ys));
+    $("r2").innerHTML = sc.$ === "Done" ? show(sc.value)
+      : sc.error.$ === "Degenerate" ? `<span class="ap">undefined: every y is equal</span>` : esc(sc.error.$);
+    chart(pts, {a: approx(model.coef), b: approx(model.intercept)});
+  } else {
+    err.innerHTML = res.$ === "Fail" ? errText(res.error, fi) : `<b>Error</b>: ${esc(String(res.e))}`;
+    err.hidden = false;
+    $("coef").textContent = $("intercept").textContent = $("r2").textContent = "–";
+    chart(pts, null);
+  }
+  $("cap").textContent = `${pts.length} point${pts.length === 1 ? "" : "s"} · fitted line · residuals dashed`;
+  renderCall(res, fi);
+  predict();
+}
+
+function renderCall(res, fi) {
+  const b = `<span class="k">${fi ? "True" : "False"}{}</span>`;
+  let out = `<span class="c"># linreg.bend, compiled to JavaScript</span>\nLinearRegression.fit(${b}, xs, ys)\n`;
+  if (res && res.$ === "Done")
+    out += `  <span class="c">==</span> <span class="k">Done</span>{LinearRegression{${b}, <span class="v">${exact(res.value.coef)}</span>, <span class="v">${exact(res.value.intercept)}</span>}}`;
+  else if (res && res.$ === "Fail")
+    out += `  <span class="c">==</span> <span class="k">Fail</span>{<span class="r">${res.error.$}</span>{}}`;
+  else
+    out += `  <span class="c">== …</span>`;
+  $("call").innerHTML = out;
+}
+
+function renderLimit(rs, n) {
+  const {L, B, need} = limit(rs, n);
+  const ok = L <= K && need <= K;
+  $("ln").textContent = big(BigInt(n));
+  $("ll").textContent = big(L);
+  $("lb").textContent = big(B);
+  const pct = need === 0n ? 0 : Math.min(100, Math.log2(Number(need) + 1) / 47 * 100);
+  $("lneed").innerHTML = `${big(need)} <span class="ap">${ok ? "within K" : "over K: TooLarge"}</span>`;
+  $("meter").classList.toggle("over", !ok);
+  $("meter").firstElementChild.style.width = (ok ? pct : 100) + "%";
+}
+
+function predict() {
+  const err = $("prederr"), ul = $("preds");
+  err.hidden = true; ul.innerHTML = "";
+  const raw = $("px").value.split(/[\s,;]+/).filter(Boolean);
+  if (!raw.length) return;
+  if (!model) { ul.innerHTML = `<li><span>–</span><span class="ap">fit a model first</span></li>`; return; }
+  let qs;
+  try { qs = raw.map(parseRat); }
+  catch (e) { err.innerHTML = esc(String(e)); err.hidden = false; return; }
+  const xs = qs.map(toRat);
+  let res;
+  try { res = Bend["LinearRegression.predict"](model, list(xs)); }
+  catch (e) { err.innerHTML = `<b>Error</b>: ${esc(String(e))}`; err.hidden = false; return; }
+  if (res.$ === "Fail") {
+    err.innerHTML = res.error.$ === "TooLarge"
+      ? "<b>TooLarge</b>: the exact prediction for one of these x could pass Bend's 2⁴⁸ limit."
+      : errText(res.error, fitIntercept);
+    err.hidden = false; return;
+  }
+  ul.innerHTML = array(res.value).map((y, i) =>
+    `<li><span>${esc(exact(xs[i]))}</span><span>${show(y)}</span></li>`).join("");
+}
+
+// Presets
+const pre = $("presets");
+PRESETS.forEach((p, i) => {
+  const b = document.createElement("button");
+  b.type = "button"; b.id = "preset-" + i; b.textContent = p.name;
+  b.addEventListener("click", () => load(i));
+  pre.appendChild(b);
+});
+function load(i) {
+  const p = PRESETS[i];
+  $("data").value = p.data; $("fi").checked = p.fi; $("px").value = p.px;
+  [...pre.children].forEach((b, j) => b.setAttribute("aria-pressed", String(i === j)));
+  run();
+}
+const unpress = () => [...pre.children].forEach(b => b.setAttribute("aria-pressed", "false"));
+
+let timer;
+$("data").addEventListener("input", () => { unpress(); clearTimeout(timer); timer = setTimeout(run, 200); });
+$("fi").addEventListener("change", () => { unpress(); run(); });
+$("px").addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(predict, 200); });
+
+load(0);
+$("status").textContent = "ready";
+})();
+</script>
+</body>
+</html>
