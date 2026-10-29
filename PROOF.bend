@@ -5,6 +5,8 @@ import ./p_int.bend as PI
 import ./p_div.bend as PD
 import ./p_rat.bend as PR
 import ./p_sum.bend as PS
+import ./p_size.bend as PZ
+import ./p_reg.bend as PRG
 import ./linreg.bend as L
 
 # Proofs of LAWS.bend. Each law is proven by the def of the same name; the
@@ -142,10 +144,31 @@ def Laws.Stats.par_seq(l, ps):
 # Regression
 # ----------
 
-def Laws.fit_mismatch(fi, xs, ys, h):
+def Laws.fit_mismatch(k, fi, xs, ys, h):
   %Equal.sym(Bool, Nat.is_eq(List.length(&2, N.Rat, xs), List.length(&2, N.Rat, ys)), False{}, h)
-    : {L.LinearRegression.fit.sizes(fi, _, xs, ys) == Fail{L.LengthMismatch{}} : Result<L.FitError, L.LinearRegression>}
+    : {L.LinearRegression.fit.sizes(k, fi, _, xs, ys) == Fail{L.LengthMismatch{}} : Result<L.FitError, L.LinearRegression>}
   {==}
 
-def Laws.fit_empty(fi):
+def Laws.fit_empty(k, fi):
   {==}
+
+def Laws.fit_too_large(k, fi, x, xt, y, yt, len, big):
+  PZ.fit_too_large(k, fi, x, xt, y, yt, len, big)
+
+def Laws.predict_ok(k, fi, a, b, xs, small):
+  PZ.predict_ok(k, fi, a, b, xs, small)
+
+def Laws.predict_too_large(k, fi, a, b, xs, big):
+  PZ.predict_too_large(k, fi, a, b, xs, big)
+
+def Laws.fit_flat(k, x, xt, y, yt, len, small, flat):
+  PRG.fit_flat(k, x, xt, y, yt, len, small, flat)
+
+def Laws.fit_ok(k, x, xt, y, yt, len, small, spread):
+  PRG.fit_ok(k, x, xt, y, yt, len, small, spread)
+
+def Laws.fit_origin_flat(k, x, xt, y, yt, len, small, zero):
+  PRG.fit_origin_flat(k, x, xt, y, yt, len, small, zero)
+
+def Laws.fit_origin_ok(k, x, xt, y, yt, len, small, nonzero):
+  PRG.fit_origin_ok(k, x, xt, y, yt, len, small, nonzero)

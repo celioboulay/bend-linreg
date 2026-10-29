@@ -86,11 +86,10 @@ def sse(+a: N.Rat, +b: N.Rat, xs: +List<N.Rat>, ys: +List<N.Rat>) -> N.Rat:
     case _ _:
       N.Rat.zero()
 
-# The size limit (linreg.bend's header), restated with exact arithmetic:
-# fit and predict must accept exactly the inputs these conditions allow.
-
-def K() -> Nat:
-  Nat.mul(16777216n, 8388608n)
+# The size limit (linreg.bend's header), restated with exact arithmetic for
+# a limit k: fit and predict must accept exactly the inputs these
+# conditions allow. linreg.bend's fit and predict are fit.within and
+# predict.within at k = K = 2^47; the laws below hold for every k.
 
 def lcm(+a: Nat, +b: Nat) -> Nat:
   Nat.div(Nat.mul(a, b), N.Nat.gcd(a, b))
@@ -116,34 +115,34 @@ def mag(rs: +List<N.Rat>, +l: Nat) -> Nat:
     case Con{+r, t}:
       Nat.max(Nat.mul(N.Int.abs(num(r)), Nat.div(l, dnat(r))), mag(t, l))
 
-def fit_fits.go(+n: Nat, +l: Nat, +b: Nat) -> Bool:
-  Bool.and(Nat.is_le(l, K()),
-    Nat.is_le(Nat.mul(Nat.mul(Nat.mul(n, n), Nat.mul(b, b)), Nat.max(Nat.mul(2n, b), l)), K()))
+def fit_fits.go(+k: Nat, +n: Nat, +l: Nat, +b: Nat) -> Bool:
+  Bool.and(Nat.is_le(l, k),
+    Nat.is_le(Nat.mul(Nat.mul(Nat.mul(n, n), Nat.mul(b, b)), Nat.max(Nat.mul(2n, b), l)), k))
 
-# fit: L <= K and n² B² max(2B, L) <= K
-def fit_fits(+xs: +List<N.Rat>, +ys: +List<N.Rat>) -> Bool:
+# fit: L <= k and n² B² max(2B, L) <= k
+def fit_fits(+k: Nat, +xs: +List<N.Rat>, +ys: +List<N.Rat>) -> Bool:
   +l = den_lcm(ys, den_lcm(xs, 1n))
-  fit_fits.go(List.length(&2, N.Rat, xs), l, Nat.max(mag(xs, l), mag(ys, l)))
+  fit_fits.go(k, List.length(&2, N.Rat, xs), l, Nat.max(mag(xs, l), mag(ys, l)))
 
-# every x = u / v has max(|ca u| + |cb v|, d v) <= K
-def predict_fits.xs(+ca: Nat, +cb: Nat, +d: Nat, xs: +List<N.Rat>) -> Bool:
+# every x = u / v has max(|ca u| + |cb v|, d v) <= k
+def predict_fits.xs(+k: Nat, +ca: Nat, +cb: Nat, +d: Nat, xs: +List<N.Rat>) -> Bool:
   match xs:
     case Nil{}:
       True{}
     case Con{+x, t}:
       Bool.and(
-        Nat.is_le(Nat.max(Nat.add(Nat.mul(ca, N.Int.abs(num(x))), Nat.mul(cb, dnat(x))), Nat.mul(d, dnat(x))), K()),
-        predict_fits.xs(ca, cb, d, t))
+        Nat.is_le(Nat.max(Nat.add(Nat.mul(ca, N.Int.abs(num(x))), Nat.mul(cb, dnat(x))), Nat.mul(d, dnat(x))), k),
+        predict_fits.xs(k, ca, cb, d, t))
 
-def predict_fits.go(+p: Nat, +q: Nat, +r: Nat, +s: Nat, +d: Nat, xs: +List<N.Rat>) -> Bool:
+def predict_fits.go(+k: Nat, +p: Nat, +q: Nat, +r: Nat, +s: Nat, +d: Nat, xs: +List<N.Rat>) -> Bool:
   +ca = Nat.mul(p, Nat.div(d, q))
   +cb = Nat.mul(r, Nat.div(d, s))
-  Bool.and(Nat.is_le(Nat.max(d, Nat.max(ca, cb)), K()), predict_fits.xs(ca, cb, d, xs))
+  Bool.and(Nat.is_le(Nat.max(d, Nat.max(ca, cb)), k), predict_fits.xs(k, ca, cb, d, xs))
 
 # predict: with d = lcm(den a, den b), coef = ca / d and intercept = cb / d,
-# max(|ca|, |cb|, d) <= K and every x passes predict_fits.xs
-def predict_fits(+a: N.Rat, +b: N.Rat, xs: +List<N.Rat>) -> Bool:
-  predict_fits.go(N.Int.abs(num(a)), dnat(a), N.Int.abs(num(b)), dnat(b), lcm(dnat(a), dnat(b)), xs)
+# max(|ca|, |cb|, d) <= k and every x passes predict_fits.xs
+def predict_fits(+k: Nat, +a: N.Rat, +b: N.Rat, xs: +List<N.Rat>) -> Bool:
+  predict_fits.go(k, N.Int.abs(num(a)), dnat(a), N.Int.abs(num(b)), dnat(b), lcm(dnat(a), dnat(b)), xs)
 
 # gcd
 # ---
@@ -406,140 +405,154 @@ law Stats.par_seq:
 # -------------------
 
 law predict_ok:
+  for +k: Nat
   for fi: Bool
   for a: N.Rat
   for b: N.Rat
   for xs: +List<N.Rat>
-  for small: {predict_fits(a, b, xs) == True{} : Bool}
-  {L.LinearRegression.predict(L.LinearRegression{fi, a, b}, xs)
+  for small: {predict_fits(k, a, b, xs) == True{} : Bool}
+  {L.LinearRegression.predict.within(k, L.LinearRegression{fi, a, b}, xs)
     == Done{predict(a, b, xs)} : Result<L.FitError, +List<N.Rat>>}
 
 law predict_too_large:
+  for +k: Nat
   for fi: Bool
   for a: N.Rat
   for b: N.Rat
   for xs: +List<N.Rat>
-  for big: {predict_fits(a, b, xs) == False{} : Bool}
-  {L.LinearRegression.predict(L.LinearRegression{fi, a, b}, xs)
+  for big: {predict_fits(k, a, b, xs) == False{} : Bool}
+  {L.LinearRegression.predict.within(k, L.LinearRegression{fi, a, b}, xs)
     == Fail{L.TooLarge{}} : Result<L.FitError, +List<N.Rat>>}
 
 # fit fails exactly in the degenerate or too-large cases.
 
 law fit_mismatch:
+  for +k: Nat
   for fi: Bool
   for xs: +List<N.Rat>
   for ys: +List<N.Rat>
   for h: {Nat.is_eq(List.length(&2, N.Rat, xs), List.length(&2, N.Rat, ys)) == False{} : Bool}
-  {L.LinearRegression.fit(fi, xs, ys) == Fail{L.LengthMismatch{}} : Result<L.FitError, L.LinearRegression>}
+  {L.LinearRegression.fit.within(k, fi, xs, ys) == Fail{L.LengthMismatch{}} : Result<L.FitError, L.LinearRegression>}
 
 law fit_empty:
+  for +k: Nat
   for fi: Bool
-  {L.LinearRegression.fit(fi, Nil{}, Nil{}) == Fail{L.Empty{}} : Result<L.FitError, L.LinearRegression>}
+  {L.LinearRegression.fit.within(k, fi, Nil{}, Nil{}) == Fail{L.Empty{}} : Result<L.FitError, L.LinearRegression>}
 
 law fit_too_large:
+  for +k: Nat
   for fi: Bool
   for x: N.Rat
   for xt: +List<N.Rat>
   for y: N.Rat
   for yt: +List<N.Rat>
   for len: {List.length(&2, N.Rat, xt) == List.length(&2, N.Rat, yt) : Nat}
-  for big: {fit_fits(x <> xt, y <> yt) == False{} : Bool}
-  {L.LinearRegression.fit(fi, x <> xt, y <> yt) == Fail{L.TooLarge{}} : Result<L.FitError, L.LinearRegression>}
+  for big: {fit_fits(k, x <> xt, y <> yt) == False{} : Bool}
+  {L.LinearRegression.fit.within(k, fi, x <> xt, y <> yt) == Fail{L.TooLarge{}} : Result<L.FitError, L.LinearRegression>}
 
 # With an intercept: every x equal (one point included) has no unique line...
 law fit_flat:
+  for +k: Nat
   for x: N.Rat
   for xt: +List<N.Rat>
   for y: N.Rat
   for yt: +List<N.Rat>
   for len: {List.length(&2, N.Rat, xt) == List.length(&2, N.Rat, yt) : Nat}
-  for small: {fit_fits(x <> xt, y <> yt) == True{} : Bool}
+  for small: {fit_fits(k, x <> xt, y <> yt) == True{} : Bool}
   for flat: {all_same(x, xt) == True{} : Bool}
-  {L.LinearRegression.fit(True{}, x <> xt, y <> yt) == Fail{L.Degenerate{}} : Result<L.FitError, L.LinearRegression>}
+  {L.LinearRegression.fit.within(k, True{}, x <> xt, y <> yt) == Fail{L.Degenerate{}} : Result<L.FitError, L.LinearRegression>}
 
 # ...and two different x always give one.
 law fit_ok:
+  for +k: Nat
   for x: N.Rat
   for xt: +List<N.Rat>
   for y: N.Rat
   for yt: +List<N.Rat>
   for len: {List.length(&2, N.Rat, xt) == List.length(&2, N.Rat, yt) : Nat}
-  for small: {fit_fits(x <> xt, y <> yt) == True{} : Bool}
+  for small: {fit_fits(k, x <> xt, y <> yt) == True{} : Bool}
   for spread: {all_same(x, xt) == False{} : Bool}
   exs m: L.LinearRegression
-  {L.LinearRegression.fit(True{}, x <> xt, y <> yt) == Done{m} : Result<L.FitError, L.LinearRegression>}
+  {L.LinearRegression.fit.within(k, True{}, x <> xt, y <> yt) == Done{m} : Result<L.FitError, L.LinearRegression>}
 
 # Through the origin: every x zero has no unique line, one nonzero x gives one.
 law fit_origin_flat:
+  for +k: Nat
   for x: N.Rat
   for xt: +List<N.Rat>
   for y: N.Rat
   for yt: +List<N.Rat>
   for len: {List.length(&2, N.Rat, xt) == List.length(&2, N.Rat, yt) : Nat}
-  for small: {fit_fits(x <> xt, y <> yt) == True{} : Bool}
+  for small: {fit_fits(k, x <> xt, y <> yt) == True{} : Bool}
   for zero: {all_same(N.Rat.zero(), x <> xt) == True{} : Bool}
-  {L.LinearRegression.fit(False{}, x <> xt, y <> yt) == Fail{L.Degenerate{}} : Result<L.FitError, L.LinearRegression>}
+  {L.LinearRegression.fit.within(k, False{}, x <> xt, y <> yt) == Fail{L.Degenerate{}} : Result<L.FitError, L.LinearRegression>}
 
 law fit_origin_ok:
+  for +k: Nat
   for x: N.Rat
   for xt: +List<N.Rat>
   for y: N.Rat
   for yt: +List<N.Rat>
   for len: {List.length(&2, N.Rat, xt) == List.length(&2, N.Rat, yt) : Nat}
-  for small: {fit_fits(x <> xt, y <> yt) == True{} : Bool}
+  for small: {fit_fits(k, x <> xt, y <> yt) == True{} : Bool}
   for nonzero: {all_same(N.Rat.zero(), x <> xt) == False{} : Bool}
   exs m: L.LinearRegression
-  {L.LinearRegression.fit(False{}, x <> xt, y <> yt) == Done{m} : Result<L.FitError, L.LinearRegression>}
+  {L.LinearRegression.fit.within(k, False{}, x <> xt, y <> yt) == Done{m} : Result<L.FitError, L.LinearRegression>}
 
 # Normal equations: the residuals of a fitted line sum to 0 and are
 # orthogonal to x.
 law normal_eq:
+  for +k: Nat
   for xs: +List<N.Rat>
   for ys: +List<N.Rat>
   for a: N.Rat
   for b: N.Rat
-  for ok: {L.LinearRegression.fit(True{}, xs, ys)
+  for ok: {L.LinearRegression.fit.within(k, True{}, xs, ys)
     == Done{L.LinearRegression{True{}, a, b}} : Result<L.FitError, L.LinearRegression>}
   {sum_r(a, b, xs, ys) == N.Rat.zero() : N.Rat} & {sum_xr(a, b, xs, ys) == N.Rat.zero() : N.Rat}
 
 law normal_eq_origin:
+  for +k: Nat
   for xs: +List<N.Rat>
   for ys: +List<N.Rat>
   for a: N.Rat
   for b: N.Rat
-  for ok: {L.LinearRegression.fit(False{}, xs, ys)
+  for ok: {L.LinearRegression.fit.within(k, False{}, xs, ys)
     == Done{L.LinearRegression{False{}, a, b}} : Result<L.FitError, L.LinearRegression>}
   {b == N.Rat.zero() : N.Rat} & {sum_xr(a, b, xs, ys) == N.Rat.zero() : N.Rat}
 
 # Least squares: no other line has a smaller sum of squared residuals.
 law least_squares:
+  for +k: Nat
   for xs: +List<N.Rat>
   for ys: +List<N.Rat>
   for a: N.Rat
   for b: N.Rat
-  for ok: {L.LinearRegression.fit(True{}, xs, ys)
+  for ok: {L.LinearRegression.fit.within(k, True{}, xs, ys)
     == Done{L.LinearRegression{True{}, a, b}} : Result<L.FitError, L.LinearRegression>}
   for a2: N.Rat
   for b2: N.Rat
   {N.Rat.is_le(sse(a, b, xs, ys), sse(a2, b2, xs, ys)) == True{} : Bool}
 
 law least_squares_origin:
+  for +k: Nat
   for xs: +List<N.Rat>
   for ys: +List<N.Rat>
   for a: N.Rat
   for b: N.Rat
-  for ok: {L.LinearRegression.fit(False{}, xs, ys)
+  for ok: {L.LinearRegression.fit.within(k, False{}, xs, ys)
     == Done{L.LinearRegression{False{}, a, b}} : Result<L.FitError, L.LinearRegression>}
   for a2: N.Rat
   {N.Rat.is_le(sse(a, b, xs, ys), sse(a2, N.Rat.zero(), xs, ys)) == True{} : Bool}
 
 # ...and it is the only one: a line at least as good is the same line.
 law least_squares_unique:
+  for +k: Nat
   for xs: +List<N.Rat>
   for ys: +List<N.Rat>
   for a: N.Rat
   for b: N.Rat
-  for ok: {L.LinearRegression.fit(True{}, xs, ys)
+  for ok: {L.LinearRegression.fit.within(k, True{}, xs, ys)
     == Done{L.LinearRegression{True{}, a, b}} : Result<L.FitError, L.LinearRegression>}
   for a2: N.Rat
   for b2: N.Rat
@@ -547,11 +560,12 @@ law least_squares_unique:
   {same(a2, a) == True{} : Bool} & {same(b2, b) == True{} : Bool}
 
 law least_squares_origin_unique:
+  for +k: Nat
   for xs: +List<N.Rat>
   for ys: +List<N.Rat>
   for a: N.Rat
   for b: N.Rat
-  for ok: {L.LinearRegression.fit(False{}, xs, ys)
+  for ok: {L.LinearRegression.fit.within(k, False{}, xs, ys)
     == Done{L.LinearRegression{False{}, a, b}} : Result<L.FitError, L.LinearRegression>}
   for a2: N.Rat
   for good: {N.Rat.is_le(sse(a2, N.Rat.zero(), xs, ys), sse(a, b, xs, ys)) == True{} : Bool}

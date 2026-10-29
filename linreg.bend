@@ -36,69 +36,71 @@ def Point.zip(xs: +List<N.Rat>, ys: +List<N.Rat>) -> +List<Point>:
 # Size limits
 # -----------
 
-# K = 2^47
+# K = 2^47. The checks below take the limit as a parameter k, and fit,
+# predict and score pass K; the laws hold for every k, which also keeps
+# the checker (it counts in unary) from ever evaluating 2^47.
 def Limit.k() -> Nat:
   Nat.mul(16777216n, 8388608n)
 
-def Limit.ok(+v: Nat) -> Bool:
-  Nat.is_le(v, Limit.k())
+def Limit.ok(+k: Nat, +v: Nat) -> Bool:
+  Nat.is_le(v, k)
 
-def Limit.mul.go(ok: Bool, +a: Nat, +b: Nat) -> Nat:
+def Limit.mul.go(+k: Nat, ok: Bool, +a: Nat, +b: Nat) -> Nat:
   match ok:
     case True{}:
       Nat.mul(a, b)
     case False{}:
-      1n+Limit.k()
+      1n+k
 
 # min(a b, K + 1), without overflow for a, b <= K + 1.
-def Limit.mul(+a: Nat, +b: Nat) -> Nat:
+def Limit.mul(+k: Nat, +a: Nat, +b: Nat) -> Nat:
   match a:
     case 0n:
       0n
     case 1n+p:
-      Limit.mul.go(Nat.is_le(b, Nat.div(Limit.k(), a)), a, b)
+      Limit.mul.go(k, Nat.is_le(b, Nat.div(k, a)), a, b)
 
-def Limit.add.go(ok: Bool, +a: Nat, +b: Nat) -> Nat:
+def Limit.add.go(+k: Nat, ok: Bool, +a: Nat, +b: Nat) -> Nat:
   match ok:
     case True{}:
       Nat.add(a, b)
     case False{}:
-      1n+Limit.k()
+      1n+k
 
 # min(a + b, K + 1)
-def Limit.add(+a: Nat, +b: Nat) -> Nat:
-  Limit.add.go(Nat.is_le(a, Nat.sub(Limit.k(), b)), a, b)
+def Limit.add(+k: Nat, +a: Nat, +b: Nat) -> Nat:
+  Limit.add.go(k, Nat.is_le(a, Nat.sub(k, b)), a, b)
 
 # min(lcm(a, b), K + 1), for a, b >= 1
-def Limit.lcm(+a: Nat, +b: Nat) -> Nat:
-  Limit.mul(Nat.div(a, N.Nat.gcd(a, b)), b)
+def Limit.lcm(+k: Nat, +a: Nat, +b: Nat) -> Nat:
+  Limit.mul(k, Nat.div(a, N.Nat.gcd(a, b)), b)
 
 # lcm of acc and every denominator in rs
-def Limit.dens(rs: +List<N.Rat>, +acc: Nat) -> Nat:
+def Limit.dens(+k: Nat, rs: +List<N.Rat>, +acc: Nat) -> Nat:
   match rs:
     case Nil{}:
       acc
     case Con{r, t}:
-      Limit.dens(t, Limit.lcm(acc, N.Rat.den(r)))
+      Limit.dens(k, t, Limit.lcm(k, acc, N.Rat.den(r)))
 
 # |r| l, an integer when den(r) divides l
-def Limit.scaled(+l: Nat, r: N.Rat) -> Nat:
+def Limit.scaled(+k: Nat, +l: Nat, r: N.Rat) -> Nat:
   match r:
     case N.Rat{n, d}:
-      Limit.mul(N.Int.abs(n), Nat.div(l, 1n+d))
+      Limit.mul(k, N.Int.abs(n), Nat.div(l, 1n+d))
 
 # the largest |r| l over rs
-def Limit.mag(rs: +List<N.Rat>, +l: Nat) -> Nat:
+def Limit.mag(+k: Nat, rs: +List<N.Rat>, +l: Nat) -> Nat:
   match rs:
     case Nil{}:
       0n
     case Con{r, t}:
-      Nat.max(Limit.scaled(l, r), Limit.mag(t, l))
+      Nat.max(Limit.scaled(k, l, r), Limit.mag(k, t, l))
 
 # fit's condition (bounds in LinearRegression.solve)
-def Limit.fit(+n: Nat, +l: Nat, +b: Nat) -> Bool:
-  Bool.and(Limit.ok(l),
-    Limit.ok(Limit.mul(Limit.mul(Limit.mul(n, n), Limit.mul(b, b)), Nat.max(Limit.mul(2n, b), l))))
+def Limit.fit(+k: Nat, +n: Nat, +l: Nat, +b: Nat) -> Bool:
+  Bool.and(Limit.ok(k, l),
+    Limit.ok(k, Limit.mul(k, Limit.mul(k, Limit.mul(k, n, n), Limit.mul(k, b, b)), Nat.max(Limit.mul(k, 2n, b), l))))
 
 # Sums
 # ----
@@ -237,26 +239,30 @@ def LinearRegression.fit.check(ok: Bool, fit_intercept: Bool, +l: Nat, xs: +List
     case True{}:
       LinearRegression.fit.stats(fit_intercept, l, Stats.par(l, Point.zip(xs, ys)))
 
-def LinearRegression.fit.data(fit_intercept: Bool, xs: +List<N.Rat>, +ys: +List<N.Rat>) -> Result<FitError, LinearRegression>:
+def LinearRegression.fit.data(+k: Nat, fit_intercept: Bool, xs: +List<N.Rat>, +ys: +List<N.Rat>) -> Result<FitError, LinearRegression>:
   match xs:
     case Nil{}:
       Fail{Empty{}}
     case Con{+x, +t}:
-      +l = Limit.dens(ys, Limit.dens(x <> t, 1n))
-      +b = Nat.max(Limit.mag(x <> t, l), Limit.mag(ys, l))
-      LinearRegression.fit.check(Limit.fit(List.length(&2, N.Rat, ys), l, b), fit_intercept, l, x <> t, ys)
+      +l = Limit.dens(k, ys, Limit.dens(k, x <> t, 1n))
+      +b = Nat.max(Limit.mag(k, x <> t, l), Limit.mag(k, ys, l))
+      LinearRegression.fit.check(Limit.fit(k, List.length(&2, N.Rat, ys), l, b), fit_intercept, l, x <> t, ys)
 
-def LinearRegression.fit.sizes(fit_intercept: Bool, same: Bool, xs: +List<N.Rat>, ys: +List<N.Rat>) -> Result<FitError, LinearRegression>:
+def LinearRegression.fit.sizes(+k: Nat, fit_intercept: Bool, same: Bool, xs: +List<N.Rat>, ys: +List<N.Rat>) -> Result<FitError, LinearRegression>:
   match same:
     case True{}:
-      LinearRegression.fit.data(fit_intercept, xs, ys)
+      LinearRegression.fit.data(k, fit_intercept, xs, ys)
     case False{}:
       Fail{LengthMismatch{}}
 
+# fit with the size limit k (the laws hold for every k)
+def LinearRegression.fit.within(+k: Nat, fit_intercept: Bool, +xs: +List<N.Rat>, +ys: +List<N.Rat>) -> Result<FitError, LinearRegression>:
+  LinearRegression.fit.sizes(k, fit_intercept,
+    Nat.is_eq(List.length(&2, N.Rat, xs), List.length(&2, N.Rat, ys)), xs, ys)
+
 # sklearn's LinearRegression(fit_intercept=...).fit(X, y), on one feature.
 def LinearRegression.fit(fit_intercept: Bool, +xs: +List<N.Rat>, +ys: +List<N.Rat>) -> Result<FitError, LinearRegression>:
-  LinearRegression.fit.sizes(fit_intercept,
-    Nat.is_eq(List.length(&2, N.Rat, xs), List.length(&2, N.Rat, ys)), xs, ys)
+  LinearRegression.fit.within(Limit.k(), fit_intercept, xs, ys)
 
 # Predict
 # -------
@@ -275,13 +281,13 @@ def Common.of(m: LinearRegression) -> Common:
       Common.of.go(p, 1n+q, r, 1n+s, N.Nat.lcm(1n+q, 1n+s))
 
 # W = max(|a|, |b|, d) of Common.of(m), measured without overflow.
-def Limit.common.go(+p: Nat, +q: Nat, +r: Nat, +s: Nat, +d: Nat) -> Nat:
-  Nat.max(d, Nat.max(Limit.mul(p, Nat.div(d, q)), Limit.mul(r, Nat.div(d, s))))
+def Limit.common.go(+k: Nat, +p: Nat, +q: Nat, +r: Nat, +s: Nat, +d: Nat) -> Nat:
+  Nat.max(d, Nat.max(Limit.mul(k, p, Nat.div(d, q)), Limit.mul(k, r, Nat.div(d, s))))
 
-def Limit.common(m: LinearRegression) -> Nat:
+def Limit.common(+k: Nat, m: LinearRegression) -> Nat:
   match m:
     case LinearRegression{fi, N.Rat{p, +q}, N.Rat{r, +s}}:
-      Limit.common.go(N.Int.abs(p), 1n+q, N.Int.abs(r), 1n+s, Limit.lcm(1n+q, 1n+s))
+      Limit.common.go(k, N.Int.abs(p), 1n+q, N.Int.abs(r), 1n+s, Limit.lcm(k, 1n+q, 1n+s))
 
 # coef x + intercept for x = u / v is (a u + b v) / (d v).
 def Common.at(c: Common, x: N.Rat) -> N.Rat:
@@ -290,18 +296,18 @@ def Common.at(c: Common, x: N.Rat) -> N.Rat:
       N.Rat.reduce(N.Int.add(N.Int.mul(a, u), N.Int.mul(b, N.Pos{1n+vp})), Nat.sub(Nat.mul(d, 1n+vp), 1n))
 
 # Common.at's largest value: max(|a u| + |b v|, d v)
-def Limit.at(c: Common, x: N.Rat) -> Nat:
+def Limit.at(+k: Nat, c: Common, x: N.Rat) -> Nat:
   match c x:
     case Common{a, b, +d} N.Rat{u, +vp}:
-      Nat.max(Limit.add(Limit.mul(N.Int.abs(a), N.Int.abs(u)), Limit.mul(N.Int.abs(b), 1n+vp)),
-              Limit.mul(d, 1n+vp))
+      Nat.max(Limit.add(k, Limit.mul(k, N.Int.abs(a), N.Int.abs(u)), Limit.mul(k, N.Int.abs(b), 1n+vp)),
+              Limit.mul(k, d, 1n+vp))
 
-def Limit.predict(+c: Common, xs: +List<N.Rat>) -> Nat:
+def Limit.predict(+k: Nat, +c: Common, xs: +List<N.Rat>) -> Nat:
   match xs:
     case Nil{}:
       0n
     case Con{x, t}:
-      Nat.max(Limit.at(c, x), Limit.predict(c, t))
+      Nat.max(Limit.at(k, c, x), Limit.predict(k, c, t))
 
 def LinearRegression.predict.go(+c: Common, xs: +List<N.Rat>) -> +List<N.Rat>:
   match xs:
@@ -317,17 +323,20 @@ def LinearRegression.predict.check(ok: Bool, +c: Common, xs: +List<N.Rat>) -> Re
     case True{}:
       Done{LinearRegression.predict.go(c, xs)}
 
-def LinearRegression.predict.model(ok: Bool, m: LinearRegression, +xs: +List<N.Rat>) -> Result<FitError, +List<N.Rat>>:
+def LinearRegression.predict.model(+k: Nat, ok: Bool, m: LinearRegression, +xs: +List<N.Rat>) -> Result<FitError, +List<N.Rat>>:
   match ok:
     case False{}:
       Fail{TooLarge{}}
     case True{}:
       +c = Common.of(m)
-      LinearRegression.predict.check(Limit.ok(Limit.predict(c, xs)), c, xs)
+      LinearRegression.predict.check(Limit.ok(k, Limit.predict(k, c, xs)), c, xs)
+
+def LinearRegression.predict.within(+k: Nat, +m: LinearRegression, +xs: +List<N.Rat>) -> Result<FitError, +List<N.Rat>>:
+  LinearRegression.predict.model(k, Limit.ok(k, Limit.common(k, m)), m, xs)
 
 # coef x + intercept for every x.
 def LinearRegression.predict(+m: LinearRegression, +xs: +List<N.Rat>) -> Result<FitError, +List<N.Rat>>:
-  LinearRegression.predict.model(Limit.ok(Limit.common(m)), m, xs)
+  LinearRegression.predict.within(Limit.k(), m, xs)
 
 # Score
 # -----
@@ -342,27 +351,27 @@ def Common.d(c: Common) -> Nat:
       d
 
 # lcm of acc, every d v and every z, without overflow
-def Limit.score_den(xs: +List<N.Rat>, ys: +List<N.Rat>, +d: Nat, +acc: Nat) -> Nat:
+def Limit.score_den(+k: Nat, xs: +List<N.Rat>, ys: +List<N.Rat>, +d: Nat, +acc: Nat) -> Nat:
   match xs ys:
     case Con{x, xt} Con{y, yt}:
-      Limit.score_den(xt, yt, d, Limit.lcm(Limit.lcm(acc, Limit.mul(d, N.Rat.den(x))), N.Rat.den(y)))
+      Limit.score_den(k, xt, yt, d, Limit.lcm(k, Limit.lcm(k, acc, Limit.mul(k, d, N.Rat.den(x))), N.Rat.den(y)))
     case _ _:
       acc
 
 # The largest value computing P and Y takes for one point. With V the
 # largest over all points, every value score computes is <= 4n²V².
-def Limit.score_point(c: Common, +t: Nat, x: N.Rat, y: N.Rat) -> Nat:
+def Limit.score_point(+k: Nat, c: Common, +t: Nat, x: N.Rat, y: N.Rat) -> Nat:
   match c x y:
     case Common{a, b, d} N.Rat{u, +vp} N.Rat{w, zp}:
       Nat.max(
-        Limit.mul(Limit.add(Limit.mul(N.Int.abs(a), N.Int.abs(u)), Limit.mul(N.Int.abs(b), 1n+vp)),
-                  Nat.div(t, Limit.mul(d, 1n+vp))),
-        Limit.mul(N.Int.abs(w), Nat.div(t, 1n+zp)))
+        Limit.mul(k, Limit.add(k, Limit.mul(k, N.Int.abs(a), N.Int.abs(u)), Limit.mul(k, N.Int.abs(b), 1n+vp)),
+                  Nat.div(t, Limit.mul(k, d, 1n+vp))),
+        Limit.mul(k, N.Int.abs(w), Nat.div(t, 1n+zp)))
 
-def Limit.score(+c: Common, +t: Nat, xs: +List<N.Rat>, ys: +List<N.Rat>) -> Nat:
+def Limit.score(+k: Nat, +c: Common, +t: Nat, xs: +List<N.Rat>, ys: +List<N.Rat>) -> Nat:
   match xs ys:
     case Con{x, xt} Con{y, yt}:
-      Nat.max(Limit.score_point(c, t, x, y), Limit.score(c, t, xt, yt))
+      Nat.max(Limit.score_point(k, c, t, x, y), Limit.score(k, c, t, xt, yt))
     case _ _:
       0n
 
@@ -414,32 +423,35 @@ def LinearRegression.score.check(ok: Bool, +n: Nat, +c: Common, +t: Nat, xs: +Li
     case True{}:
       LinearRegression.score.finish(N.Pos{n}, Sums.of(c, t, xs, ys))
 
-def LinearRegression.score.model(ok: Bool, m: LinearRegression, +n: Nat, +xs: +List<N.Rat>, +ys: +List<N.Rat>) -> Result<FitError, N.Rat>:
+def LinearRegression.score.model(+k: Nat, ok: Bool, m: LinearRegression, +n: Nat, +xs: +List<N.Rat>, +ys: +List<N.Rat>) -> Result<FitError, N.Rat>:
   match ok:
     case False{}:
       Fail{TooLarge{}}
     case True{}:
       +c = Common.of(m)
-      +t = Limit.score_den(xs, ys, Common.d(c), 1n)
-      +v = Limit.score(c, t, xs, ys)
+      +t = Limit.score_den(k, xs, ys, Common.d(c), 1n)
+      +v = Limit.score(k, c, t, xs, ys)
       LinearRegression.score.check(
-        Bool.and(Limit.ok(t), Limit.ok(Limit.mul(Limit.mul(4n, Limit.mul(n, n)), Limit.mul(v, v)))),
+        Bool.and(Limit.ok(k, t), Limit.ok(k, Limit.mul(k, Limit.mul(k, 4n, Limit.mul(k, n, n)), Limit.mul(k, v, v)))),
         n, c, t, xs, ys)
 
-def LinearRegression.score.data(+m: LinearRegression, xs: +List<N.Rat>, +ys: +List<N.Rat>) -> Result<FitError, N.Rat>:
+def LinearRegression.score.data(+k: Nat, +m: LinearRegression, xs: +List<N.Rat>, +ys: +List<N.Rat>) -> Result<FitError, N.Rat>:
   match xs:
     case Nil{}:
       Fail{Empty{}}
     case Con{+x, +t}:
-      LinearRegression.score.model(Limit.ok(Limit.common(m)), m, List.length(&2, N.Rat, ys), x <> t, ys)
+      LinearRegression.score.model(k, Limit.ok(k, Limit.common(k, m)), m, List.length(&2, N.Rat, ys), x <> t, ys)
 
-def LinearRegression.score.sizes(+m: LinearRegression, same: Bool, xs: +List<N.Rat>, ys: +List<N.Rat>) -> Result<FitError, N.Rat>:
+def LinearRegression.score.sizes(+k: Nat, +m: LinearRegression, same: Bool, xs: +List<N.Rat>, ys: +List<N.Rat>) -> Result<FitError, N.Rat>:
   match same:
     case False{}:
       Fail{LengthMismatch{}}
     case True{}:
-      LinearRegression.score.data(m, xs, ys)
+      LinearRegression.score.data(k, m, xs, ys)
+
+def LinearRegression.score.within(+k: Nat, +m: LinearRegression, +xs: +List<N.Rat>, +ys: +List<N.Rat>) -> Result<FitError, N.Rat>:
+  LinearRegression.score.sizes(k, m, Nat.is_eq(List.length(&2, N.Rat, xs), List.length(&2, N.Rat, ys)), xs, ys)
 
 # sklearn's score: R² = 1 - SS_res / SS_tot. Degenerate when every y is equal.
 def LinearRegression.score(+m: LinearRegression, +xs: +List<N.Rat>, +ys: +List<N.Rat>) -> Result<FitError, N.Rat>:
-  LinearRegression.score.sizes(m, Nat.is_eq(List.length(&2, N.Rat, xs), List.length(&2, N.Rat, ys)), xs, ys)
+  LinearRegression.score.within(Limit.k(), m, xs, ys)
