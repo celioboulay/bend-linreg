@@ -2,6 +2,7 @@ import Base
 import ./num.bend as N
 import ./LAWS.bend as Laws
 import ./p_int.bend as PI
+import ./p_div.bend as PD
 
 # Proofs of LAWS.bend. Each law is proven by the def of the same name; the
 # work happens in the p_*.bend files.
@@ -50,3 +51,15 @@ def Laws.Int.mul_assoc(a, b, c):
 
 def Laws.Int.mul_add(a, b, c):
   PI.Int.mul_add(a, b, c)
+
+# gcd
+# ---
+
+def Laws.Nat.gcd_dvd(a, b):
+  PD.gcd_dvd(a, b)
+
+def Laws.Nat.gcd_greatest(k, a, b, ka, kb):
+  PD.gcd_greatest(k, a, b, ka, kb)
+
+def Laws.Nat.gcd_fuel(k, a, b):
+  PD.gcd_fuel(k, a, b)
