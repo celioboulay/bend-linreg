@@ -5,6 +5,7 @@ import ./p_int.bend as PI
 import ./p_div.bend as PD
 import ./p_rat.bend as PR
 import ./p_sum.bend as PS
+import ./linreg.bend as L
 
 # Proofs of LAWS.bend. Each law is proven by the def of the same name; the
 # work happens in the p_*.bend files.
@@ -137,3 +138,14 @@ def Laws.Rat.mul_add(a, b, c):
 
 def Laws.Stats.par_seq(l, ps):
   PS.par_seq(l, ps)
+
+# Regression
+# ----------
+
+def Laws.fit_mismatch(fi, xs, ys, h):
+  %Equal.sym(Bool, Nat.is_eq(List.length(&2, N.Rat, xs), List.length(&2, N.Rat, ys)), False{}, h)
+    : {L.LinearRegression.fit.sizes(fi, _, xs, ys) == Fail{L.LengthMismatch{}} : Result<L.FitError, L.LinearRegression>}
+  {==}
+
+def Laws.fit_empty(fi):
+  {==}
