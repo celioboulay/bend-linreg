@@ -4,6 +4,7 @@ import ./LAWS.bend as Laws
 import ./p_int.bend as PI
 import ./p_div.bend as PD
 import ./p_rat.bend as PR
+import ./p_sum.bend as PS
 
 # Proofs of LAWS.bend. Each law is proven by the def of the same name; the
 # work happens in the p_*.bend files.
@@ -130,3 +131,9 @@ def Laws.Rat.mul_one(a, ca):
 
 def Laws.Rat.mul_add(a, b, c):
   PR.mul_add(a, b, c)
+
+# Sums
+# ----
+
+def Laws.Stats.par_seq(l, ps):
+  PS.par_seq(l, ps)
