@@ -7,6 +7,7 @@ import ./p_rat.bend as PR
 import ./p_sum.bend as PS
 import ./p_size.bend as PZ
 import ./p_reg.bend as PRG
+import ./p_ls.bend as PLS
 import ./linreg.bend as L
 
 # Proofs of LAWS.bend. Each law is proven by the def of the same name; the
@@ -172,3 +173,21 @@ def Laws.fit_origin_flat(k, x, xt, y, yt, len, small, zero):
 
 def Laws.fit_origin_ok(k, x, xt, y, yt, len, small, nonzero):
   PRG.fit_origin_ok(k, x, xt, y, yt, len, small, nonzero)
+
+def Laws.normal_eq(k, xs, ys, a, b, ok):
+  PLS.normal_eq(k, xs, ys, a, b, ok)
+
+def Laws.normal_eq_origin(k, xs, ys, a, b, ok):
+  PLS.normal_eq_origin(k, xs, ys, a, b, ok)
+
+def Laws.least_squares(k, xs, ys, a, b, ok, a2, b2):
+  PLS.least_squares(k, xs, ys, a, b, ok, a2, b2)
+
+def Laws.least_squares_origin(k, xs, ys, a, b, ok, a2):
+  PLS.least_squares_origin(k, xs, ys, a, b, ok, a2)
+
+def Laws.least_squares_unique(k, xs, ys, a, b, ok, a2, b2, good):
+  PLS.least_squares_unique(k, xs, ys, a, b, ok, a2, b2, good)
+
+def Laws.least_squares_origin_unique(k, xs, ys, a, b, ok, a2, good):
+  PLS.least_squares_origin_unique(k, xs, ys, a, b, ok, a2, good)
